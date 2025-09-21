@@ -1,0 +1,52 @@
+# Node.js dependencies and build artifacts
+**/node_modules/
+**/.next/
+**/dist/
+**/.env
+**/.env.local
+**/.env.production
+**/.env.development
+**/.prettierrc
+**/.eslint*
+**/package-lock.json
+**/yarn.lock
+
+# TypeScript build artifacts
+**/*.tsbuildinfo
+
+# Prisma artifacts
+**/prisma/migrations/
+**/prisma/dev.db
+**/prisma/*.sqlite
+
+# VS Code settings
+.vscode/
+*.code-workspace
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# Python artifacts
+**/__pycache__/
+**/*.pyc
+**/*.pyo
+**/*.pyd
+**/.pytest_cache/
+**/.mypy_cache/
+**/.coverage
+**/.cache/
+**/.venv/
+**/env/
+**/venv/
+**/.ipynb_checkpoints
+
+# Logs
+**/logs/
+**/*.log
+
+# Misc
+*.swp
+*.swo
+
+**/tree_printer.py

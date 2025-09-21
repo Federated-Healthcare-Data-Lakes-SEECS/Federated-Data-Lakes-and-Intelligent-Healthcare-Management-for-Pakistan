@@ -1,0 +1,25 @@
+services:
+  dev-db:
+    image: postgres:15
+    environment:
+      POSTGRES_DB: hospital_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: 123
+    ports:
+      - 5433:5432
+    networks:
+      - hospital_network
+
+  test-db:
+    image: postgres:15
+    environment:
+      POSTGRES_DB: hospital_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: 123
+    ports:
+      - 5436:5432
+    networks:
+      - hospital_network
+
+networks:
+  hospital_network:
