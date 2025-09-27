@@ -123,12 +123,15 @@ model Patient {
   userId           Int       @unique @map("user_id")
   dateOfBirth      DateTime? @map("date_of_birth")
   bloodGroup       String   @map("blood_group") @db.VarChar(5) @default("")
-  address          String   @db.Text @default("")
-  phoneNumber      String   @map("phone_number") @db.VarChar(15) @default("")
-  emergencyContact String   @map("emergency_contact") @db.VarChar(15) @default("")
   medicalHistory   String   @map("medical_history") @db.Text @default("")
   familyHistory    String   @map("family_history") @db.Text @default("")
   allergies        String   @db.Text @default("")
+
+  address          String   @db.Text @default("")
+  phoneNumber      String   @map("phone_number") @db.VarChar(15) @default("")
+  emergencyContact String   @map("emergency_contact") @db.VarChar(15) @default("")
+
+  onboardingDone Boolean   @default(false) @map("onboarding_done")
   createdBy        Int?      @map("created_by") // User ID of the creator
 
   // Relations

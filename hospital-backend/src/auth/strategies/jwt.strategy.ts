@@ -6,6 +6,7 @@ import {
   Strategy,
 } from 'passport-jwt';
 import { PrismaService } from '../../prisma/prisma.service';
+import { on } from 'events';
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(
@@ -104,6 +105,7 @@ export class JwtStrategy extends PassportStrategy(
         medicalHistory: user.patient.medicalHistory,
         familyHistory: user.patient.familyHistory,
         allergies: user.patient.allergies,
+        onboardingDone: Boolean(user.patient.onboardingDone),
       };
     }
 

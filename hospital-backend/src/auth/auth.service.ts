@@ -27,15 +27,15 @@ export class AuthService {
                 const user = await prisma.user.create({
                 data: {
                     firstName: dto.firstName,
-                lastName: dto.lastName,
-                email: dto.email,
-                password: hash,
-                cnic: dto.cnic,
-                gender: dto.gender,
-            },
+                    lastName: dto.lastName,
+                    email: dto.email,
+                    password: hash,
+                    cnic: dto.cnic,
+                    gender: dto.gender,
+                },
             });
 
-            const patient = await prisma.patient.create({
+            await prisma.patient.create({
             data: {
                 userId: user.id,
                 createdBy: user.id,
@@ -52,7 +52,7 @@ export class AuthService {
             throw new ForbiddenException('Role "PATIENT" not found');
             }
 
-            const userRole = await prisma.userRole.create({
+            await prisma.userRole.create({
             data: {
                 userId: user.id,
                 roleId: role.id,
@@ -114,7 +114,7 @@ export class AuthService {
             sub: userId,
             email,
         };
-        const secret = this.config.get('JWT_SECRET');
+        const secret = this.config.get('JWT_SECRET') as string;
 
         const token = await this.jwt.signAsync(
             payload,
