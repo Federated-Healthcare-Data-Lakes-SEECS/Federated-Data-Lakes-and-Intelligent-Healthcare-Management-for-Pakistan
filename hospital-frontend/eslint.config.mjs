@@ -19,6 +19,21 @@ const eslintConfig = [
       "build/**",
       "next-env.d.ts",
     ],
+    rules: {
+      "react/react-in-jsx-scope": "off",
+      "react/jsx-uses-react": "off",
+      "react/jsx-uses-vars": "off",
+      "no-unused-vars": ["warn", { argsIgnorePattern: "^_" }],
+      semi: ["error", "always"],
+      quotes: ["error", "double"],
+      "jsx-quotes": ["error", "prefer-double"],
+      "prettier/prettier": [
+        "error",
+        {
+          endOfLine: "auto",
+        },
+      ],
+    },  
   },
 ];
 

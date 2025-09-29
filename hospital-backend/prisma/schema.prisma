@@ -232,6 +232,7 @@ model AppointmentSlot {
   scheduleId Int      @map("schedule_id")
   startTime  DateTime @map("start_time")
   endTime    DateTime @map("end_time")
+  isBookable Boolean @default(true) @map("is_bookable")
   isBooked   Boolean  @default(false) @map("is_booked")
 
   createdAt DateTime @default(now()) @map("created_at")

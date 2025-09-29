@@ -1,6 +1,7 @@
 import {
     ForbiddenException,
     Injectable,
+    BadRequestException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { LoginDto, RegisterDto, AuthResponseDto } from './dto';
@@ -17,61 +18,76 @@ export class AuthService {
         private config: ConfigService,
     ) { }
 
-    async register(dto: RegisterDto): Promise<AuthResponseDto> {
+    async register(dto: RegisterDto): Promise<{ success: boolean; message: string }> {
         // generate the password hash
         const hash = await bcrypt.hash(dto.password, 10);
 
         try {
             // save the new user in the db
-            const user =  await this.prisma.$transaction(async (prisma) => {
+            await this.prisma.$transaction(async (prisma) => {
+                // create user
                 const user = await prisma.user.create({
-                data: {
-                    firstName: dto.firstName,
-                    lastName: dto.lastName,
-                    email: dto.email,
-                    password: hash,
-                    cnic: dto.cnic,
-                    gender: dto.gender,
-                },
+                    data: {
+                        firstName: dto.firstName,
+                        lastName: dto.lastName,
+                        email: dto.email,
+                        password: hash,
+                        cnic: dto.cnic,
+                        gender: dto.gender,
+                        isActive: true,
+                        // createdAt and registeredAt will be set by defaults in Prisma schema
+                    },
+                });
+
+                // create patient record linked to user with onboardingDone false and createdBy null (self-register)
+                await prisma.patient.create({
+                    data: {
+                        userId: user.id,
+                        onboardingDone: false,
+                        createdBy: null,
+                    },
+                });
+
+                // find patient role
+                const role = await prisma.role.findUnique({
+                    where: {
+                        name: 'PATIENT',
+                    },
+                });
+
+                if (!role) {
+                    throw new ForbiddenException('Role "PATIENT" not found');
+                }
+
+                await prisma.userRole.create({
+                    data: {
+                        userId: user.id,
+                        roleId: role.id,
+                    },
+                });
+
+                return user;
             });
 
-            await prisma.patient.create({
-            data: {
-                userId: user.id,
-                createdBy: user.id,
-            },
-            });
-
-            const role = await prisma.role.findUnique({
-            where: {
-                name: 'PATIENT',
-            },
-            });
-
-            if (!role) {
-            throw new ForbiddenException('Role "PATIENT" not found');
-            }
-
-            await prisma.userRole.create({
-            data: {
-                userId: user.id,
-                roleId: role.id,
-            },
-            });
-
-            return user;
-        });
-
-        return this.signToken(user.id, user.email);
+            // Return success message (frontend can redirect to login)
+            return { success: true, message: 'Registration successful' };
         } catch (error) {
             if (
                 error instanceof
                 PrismaClientKnownRequestError
             ) {
                 if (error.code === 'P2002') {
-                    throw new ForbiddenException(
-                        'Credentials taken',
-                    );
+                    // unique constraint failed
+                    // figure out which field
+                    const meta: any = (error as any).meta;
+                    const target = meta?.target;
+                    if (Array.isArray(target) && target.includes('email')) {
+                        throw new BadRequestException('Email already in use');
+                    }
+                    if (Array.isArray(target) && target.includes('cnic')) {
+                        throw new BadRequestException('CNIC already in use');
+                    }
+                    throw new BadRequestException('Unique constraint failed');
                 }
             }
             throw error;
@@ -79,7 +95,6 @@ export class AuthService {
     }
 
     async login(dto: LoginDto): Promise<AuthResponseDto> {
-        console.log(dto);
         // find the user by email
         const user =
             await this.prisma.user.findUnique({
@@ -109,7 +124,7 @@ export class AuthService {
     async signToken(
         userId: number,
         email: string,
-    ): Promise<{ access_token: string }> {
+    ): Promise<{ access_token: string, success: boolean }> {
         const payload = {
             sub: userId,
             email,
@@ -125,6 +140,7 @@ export class AuthService {
         );
 
         return {
+            success: true,
             access_token: token,
         };
     }

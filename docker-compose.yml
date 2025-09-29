@@ -1,0 +1,78 @@
+version: '3.8'
+
+services:
+  # Hospital Backend (Main NestJS API)
+  hospital-backend:
+    build:
+      context: ./hospital-backend
+      dockerfile: Dockerfile
+    ports:
+      - "3002:3000"
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - JWT_SECRET=${JWT_SECRET:-your-jwt-secret-here}
+      - DATABASE_URL=${DATABASE_URL:-postgresql://postgres:123@host.docker.internal:5433/hospital_db}
+      - CHECKUP_MICROSERVICE_URL=http://checkups-microservice:3000
+    depends_on:
+      - checkups-microservice
+    networks:
+      - hospital-network
+    restart: unless-stopped
+
+  # Checkups Microservice (NestJS)
+  checkups-microservice:
+    build:
+      context: ./checkups-microservice
+      dockerfile: Dockerfile
+    ports:
+      - "3001:3000"
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - DATABASE_URL=${DATABASE_URL:-postgresql://postgres:123@host.docker.internal:5433/hospital_db}
+    networks:
+      - hospital-network
+    restart: unless-stopped
+
+  # Hospital Frontend (Next.js)
+  hospital-frontend:
+    build:
+      context: ./hospital-frontend
+      dockerfile: Dockerfile
+    ports:
+      - "3003:3000"
+    environment:
+      - NODE_ENV=production
+      - NEXT_PUBLIC_API_URL=http://localhost:3002
+    depends_on:
+      - hospital-backend
+    networks:
+      - hospital-network
+    restart: unless-stopped
+
+  # Admin Panel (Next.js)
+  admin-panel:
+    build:
+      context: ./admin-panel
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - NEXT_PUBLIC_API_URL=http://localhost:3002
+    depends_on:
+      - hospital-backend
+    networks:
+      - hospital-network
+    restart: unless-stopped
+
+networks:
+  hospital-network:
+    driver: bridge
+
+volumes:
+  node_modules_backend:
+  node_modules_checkups:
+  node_modules_frontend:
+  node_modules_admin:
