@@ -85,7 +85,7 @@ async function main() {
       firstName: process.env.ADMIN_FIRST_NAME || 'Hospital',
       lastName: process.env.ADMIN_LAST_NAME || 'Administrator',
       email: process.env.ADMIN_EMAIL || 'admin@hospital.com',
-      cnic: process.env.ADMIN_CNIC || '1234567890123',
+      cnic: process.env.ADMIN_CNIC || '12345-6789012-3',
       password: hashedPassword,
       gender: 'MALE',
     },

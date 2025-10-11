@@ -9,6 +9,7 @@
     "prisma:dev:deploy": "prisma migrate deploy",
     "db:dev:rm": "docker compose rm dev-db -s -f -v",
     "db:dev:up": "docker compose up dev-db -d",
+    "prisma:generate": "prisma generate",
     "wait-for-db": "until pg_isready -h localhost -p 5433; do echo 'Waiting for DB...'; sleep 1; done",
     "db:dev:restart": "npm run db:dev:rm && npm run db:dev:up && npm run wait-for-db && npm run prisma:dev:deploy",
     "prisma:test:deploy": "dotenv -e .env.test -- prisma migrate deploy",

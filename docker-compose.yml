@@ -1,78 +1,108 @@
 version: '3.8'
 
 services:
-  # Hospital Backend (Main NestJS API)
+  # Single Database Service
+  postgres-db:
+    image: postgres:15
+    container_name: postgres-db
+    environment:
+      POSTGRES_DB: hospital_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: 123
+    ports:
+      - "5435:5432"
+    volumes:
+      - postgres_db_data:/var/lib/postgresql/data
+    networks:
+      - hospital_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Backend Services
   hospital-backend:
     build:
       context: ./hospital-backend
       dockerfile: Dockerfile
+    container_name: hospital-backend
     ports:
-      - "3002:3000"
+      - "3002:3002"
     environment:
-      - NODE_ENV=production
-      - PORT=3000
-      - JWT_SECRET=${JWT_SECRET:-your-jwt-secret-here}
-      - DATABASE_URL=${DATABASE_URL:-postgresql://postgres:123@host.docker.internal:5433/hospital_db}
-      - CHECKUP_MICROSERVICE_URL=http://checkups-microservice:3000
+      - DATABASE_URL=postgresql://postgres:123@postgres-db:5432/hospital_db
+      - JWT_SECRET=your-jwt-secret-here
+      - NODE_ENV=development
     depends_on:
-      - checkups-microservice
+      postgres-db:
+        condition: service_healthy
     networks:
-      - hospital-network
+      - hospital_network
+    volumes:
+      - ./hospital-backend:/usr/src
+      - /usr/src/node_modules
     restart: unless-stopped
 
-  # Checkups Microservice (NestJS)
   checkups-microservice:
     build:
       context: ./checkups-microservice
       dockerfile: Dockerfile
+    container_name: checkups-microservice
     ports:
-      - "3001:3000"
+      - "3003:3003"
     environment:
-      - NODE_ENV=production
-      - PORT=3000
-      - DATABASE_URL=${DATABASE_URL:-postgresql://postgres:123@host.docker.internal:5433/hospital_db}
+      - DATABASE_URL=postgresql://postgres:123@postgres-db:5432/hospital_db
+      - NODE_ENV=development
+    depends_on:
+      postgres-db:
+        condition: service_healthy
     networks:
-      - hospital-network
+      - hospital_network
+    volumes:
+      - ./checkups-microservice:/usr/src
+      - /usr/src/node_modules
     restart: unless-stopped
 
-  # Hospital Frontend (Next.js)
+  # Frontend Services
   hospital-frontend:
     build:
       context: ./hospital-frontend
       dockerfile: Dockerfile
+    container_name: hospital-frontend
     ports:
-      - "3003:3000"
+      - "3000:3000"
     environment:
-      - NODE_ENV=production
       - NEXT_PUBLIC_API_URL=http://localhost:3002
     depends_on:
       - hospital-backend
     networks:
-      - hospital-network
+      - hospital_network
+    volumes:
+      - ./hospital-frontend:/app
+      - /app/node_modules
     restart: unless-stopped
 
-  # Admin Panel (Next.js)
   admin-panel:
     build:
       context: ./admin-panel
       dockerfile: Dockerfile
+    container_name: admin-panel
     ports:
-      - "3000:3000"
+      - "3001:3001"
     environment:
-      - NODE_ENV=production
       - NEXT_PUBLIC_API_URL=http://localhost:3002
     depends_on:
       - hospital-backend
     networks:
-      - hospital-network
+      - hospital_network
+    volumes:
+      - ./admin-panel:/app
+      - /app/node_modules
     restart: unless-stopped
 
-networks:
-  hospital-network:
-    driver: bridge
-
 volumes:
-  node_modules_backend:
-  node_modules_checkups:
-  node_modules_frontend:
-  node_modules_admin:
+  postgres_db_data:
+
+networks:
+  hospital_network:
+    driver: bridge

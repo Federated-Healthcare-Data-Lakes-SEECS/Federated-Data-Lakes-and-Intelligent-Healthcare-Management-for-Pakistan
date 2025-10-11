@@ -1,47 +1,23 @@
-# Checkups Microservice Dockerfile
-FROM node:18-alpine AS base
+# 1. Use Node.js base image
+FROM node:18-alpine
 
-# Install dependencies only when needed
-FROM base AS deps
-WORKDIR /app
+# Install postgresql-client for pg_isready
+RUN apk add --no-cache postgresql-client
 
-# Copy package files
+# 2. Set working directory
+WORKDIR /usr/src
+
+# 3. Copy package files
 COPY package*.json ./
-COPY prisma ./prisma/
 
-# Install dependencies
-RUN npm ci --only=production && npm cache clean --force
+# 4. Install all dependencies (not just prod)
+RUN npm install
 
-# Generate Prisma client
-RUN npx prisma generate
-
-# Builder stage
-FROM base AS builder
-WORKDIR /app
-COPY package*.json ./
-RUN npm ci
-
+# 5. Copy the rest of the files
 COPY . .
-RUN npm run build
 
-# Production stage
-FROM base AS runner
-WORKDIR /app
+# 6. Expose port
+EXPOSE 3003
 
-ENV NODE_ENV=production
-
-RUN addgroup --system --gid 1001 nodejs
-RUN adduser --system --uid 1001 nestjs
-
-# Copy necessary files
-COPY --from=deps /app/node_modules ./node_modules
-COPY --from=builder /app/dist ./dist
-COPY --from=builder /app/prisma ./prisma
-COPY package*.json ./
-
-USER nestjs
-
-EXPOSE 3000
-ENV PORT=3000
-
-CMD ["npm", "run", "start:prod"]
+# 7. Run the app in dev mode (hot reload)
+CMD ["sh", "-c", "echo 'Generating Prisma client...' && npm run prisma:generate && echo 'Waiting for database...' && until pg_isready -h postgres-db -p 5432 -U postgres; do echo 'Database not ready, waiting...'; sleep 2; done && echo 'Database is ready!' && echo 'Starting checkups microservice...' && npm run start:dev"]
