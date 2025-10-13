@@ -22,26 +22,22 @@ enum Gender {
 model User {
   id           Int      @id @default(autoincrement())
   firstName    String   @map("first_name") @db.VarChar(100)
-  lastName     String   @map("last_name") @db.VarChar(100)
+  lastName     String?  @map("last_name") @db.VarChar(100)
   email        String   @unique @db.VarChar(255)
   password     String   @db.VarChar(255)
   gender       Gender
-  cnic         String   @unique @db.VarChar(15)
-  createdAt    DateTime @default(now()) @map("created_at")
-  registeredAt DateTime @default(now()) @map("registered_at")
+  cnic         String?  @db.VarChar(15)
   isActive     Boolean  @default(true) @map("is_active")
 
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
   // Relations
   userRoles          UserRole[]
   doctor             Doctor?
   patient            Patient?            @relation(name: "User")
   labTechnician     LabTechnician?
   receptionist       Receptionist?
-  createdPatients    Patient[]           @relation(name: "Creator")
-  createdDrugs       Drug[]              @relation(name: "DrugCreator")
-  createdLabTests    LabTest[]           @relation(name: "LabTestCreator")
-  walkinAppointments WalkinAppointment[] @relation(name: "WalkinAppointmentCreator")
-
+  pathologist        Pathologist?
   @@map("users")
 }
 
@@ -61,6 +57,8 @@ model UserRole {
   id     Int @id @default(autoincrement())
   userId Int @map("user_id")
   roleId Int @map("role_id")
+
+  createdAt DateTime @default(now()) @map("created_at")
 
   // Relations
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -88,12 +86,14 @@ model Department {
   name                 String   @unique @db.VarChar(100)
   standardDepartmentId Int      @unique @map("standard_department_id")
   description          String?  @db.Text
-  isActive             Boolean  @default(true) @map("is_active")
-  createdAt            DateTime @default(now()) @map("created_at")
 
+  createdAt            DateTime @default(now()) @map("created_at")
+  updatedAt            DateTime @updatedAt @map("updated_at")
   // Relations
   standardDepartment StandardDepartment @relation(fields: [standardDepartmentId], references: [id])
   doctors            Doctor[]
+  labTechnicians     LabTechnician[]
+  pathologists       Pathologist[]
   labTests           LabTest[]
 
   @@map("departments")
@@ -107,7 +107,9 @@ model Doctor {
   specialization String  @db.VarChar(100) @default("General Practitioner")
   experience     Int      @default(0)
   qualification  String  @db.VarChar(255) @default("MBBS")
+
   createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
 
   // Relations
   user       User             @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -121,21 +123,23 @@ model Patient {
   id               Int       @id @default(autoincrement())
   userId           Int       @unique @map("user_id")
   dateOfBirth      DateTime? @map("date_of_birth")
-  bloodGroup       String   @map("blood_group") @db.VarChar(5) @default("")
-  medicalHistory   String   @map("medical_history") @db.Text @default("")
-  familyHistory    String   @map("family_history") @db.Text @default("")
-  allergies        String   @db.Text @default("")
+  bloodGroup       String?   @map("blood_group") @db.VarChar(5) 
+  medicalHistory   String?   @map("medical_history") @db.Text
+  familyHistory    String?   @map("family_history") @db.Text
+  allergies        String?   @db.Text
 
-  address          String   @db.Text @default("")
-  phoneNumber      String   @map("phone_number") @db.VarChar(15) @default("")
-  emergencyContact String   @map("emergency_contact") @db.VarChar(15) @default("")
+  address          String?   @db.Text
+  phoneNumber      String?   @map("phone_number") @db.VarChar(15)
+  emergencyContact String?   @map("emergency_contact") @db.VarChar(15)
 
   onboardingDone Boolean   @default(false) @map("onboarding_done")
-  createdBy        Int?      @map("created_by") // User ID of the creator
+  onboardedAt    DateTime? @map("onboarded_at")
+
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
 
   // Relations
   user         User          @relation(name: "User", fields: [userId], references: [id], onDelete: Cascade)
-  creator      User?         @relation(name: "Creator", fields: [createdBy], references: [id], onDelete: SetNull)
   appointments Appointment[]
   labTests     PatientLabTest[]
 
@@ -145,11 +149,16 @@ model Patient {
 model Receptionist {
   id          Int      @id @default(autoincrement())
   userId      Int      @unique @map("user_id")
-  phoneNumber String?  @map("phone_number") @db.VarChar(15)
+  phoneNumber String  @map("phone_number") @db.VarChar(15) @default("")
+  experience  Int     @default(0)
+  qualification String @db.VarChar(255) @default("")
+
   createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
 
   // Relations
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  walkinAppointments WalkinAppointment[] @relation(name: "WalkinAppointmentCreator")
 
   @@map("receptionists")
 }
@@ -157,14 +166,38 @@ model Receptionist {
 model LabTechnician {
   id          Int      @id @default(autoincrement())
   userId      Int      @unique @map("user_id")
-  phoneNumber String?  @map("phone_number") @db.VarChar(15)
+  departmentId Int      @map("department_id")
+  specialization String @db.VarChar(100) @default("")
+  qualification String @db.VarChar(255) @default("")
+  experience  Int     @default(0)
+
   createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
 
   // Relations
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  department Department @relation(fields: [departmentId], references: [id])
   patientLabTests PatientLabTest[]
 
   @@map("lab_technicians")
+}
+
+model Pathologist {
+  id          Int      @id @default(autoincrement())
+  userId      Int      @unique @map("user_id")
+  departmentId Int      @map("department_id")
+  specialization String @db.VarChar(100)
+  qualification String @db.VarChar(255)
+  experience  Int     @default(0)
+
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  department Department @relation(fields: [departmentId], references: [id])
+
+  @@map("pathologists")
 }
 
 model Drug {
@@ -181,10 +214,8 @@ model Drug {
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
-  createdBy Int?     @map("created_by")
 
   // Relations
-  createdByUser User?        @relation(name: "DrugCreator", fields: [createdBy], references: [id], onDelete: SetNull)
   medications   Medication[]
 }
 
@@ -193,20 +224,17 @@ model LabTest {
   name         String  @db.VarChar(255)
   description  String? @db.Text
   departmentId Int     @map("department_id")
-
-  templateId Int?    @map("template_id")
+  templateId Int    @map("template_id")
 
   isActive Boolean @default(true) @map("is_active")
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
-  createdBy Int?     @map("created_by")
 
   // Relations
-  createdByUser       User?                @relation(name: "LabTestCreator", fields: [createdBy], references: [id], onDelete: SetNull)
   department          Department           @relation(fields: [departmentId], references: [id])
   recommendedLabTests RecommendedLabTest[]
-  template            LabTestTemplate?     @relation(fields: [templateId], references: [id])
+  template            LabTestTemplate     @relation(fields: [templateId], references: [id])
   patientLabTests     PatientLabTest[]
 }
 
@@ -218,6 +246,8 @@ model DoctorSchedule {
   noOfSlots Int      @map("no_of_slots")
 
   createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at") // Soft deletion for schedules
 
   // Relations
   doctor           Doctor            @relation(fields: [doctorId], references: [id], onDelete: Cascade)
@@ -231,11 +261,12 @@ model AppointmentSlot {
   scheduleId Int      @map("schedule_id")
   startTime  DateTime @map("start_time")
   endTime    DateTime @map("end_time")
-  isBookable Boolean @default(true) @map("is_bookable")
-  isBooked   Boolean  @default(false) @map("is_booked")
+  isBookable Boolean @default(true) @map("is_bookable") // If false, slot cannot be booked (e.g., blocked by doctor)
+  isBooked   Boolean  @default(false) @map("is_booked") // If true, slot is already booked
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at") // Soft deletion for slots (after schedule is deleted)
 
   // Relations
   schedule     DoctorSchedule @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
@@ -277,11 +308,11 @@ model WalkinAppointment {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
-  createdBy Int @map("created_by")
+  receptionistId Int @map("receptionist_id")
 
   // Relations
   appointment   Appointment @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
-  createdByUser User        @relation(name: "WalkinAppointmentCreator", fields: [createdBy], references: [id], onDelete: Cascade)
+  receptionist  Receptionist @relation(name: "WalkinAppointmentCreator", fields: [receptionistId], references: [id], onDelete: Cascade)
 }
 
 enum OnlineAppointmentStatus {
@@ -306,13 +337,16 @@ model OnlineAppointment {
 model Checkup {
   id                          Int     @id @default(autoincrement())
   appointmentId               Int     @unique @map("appointment_id")
+
   bloodPressure               String? @map("blood_pressure") @db.VarChar(20)
   temperature                 String? @db.VarChar(20)
   heartRate                   String? @map("heart_rate") @db.VarChar(20)
   bloodSugar                  String? @map("blood_sugar") @db.VarChar(20)
+
   symptoms                    String  @db.Text
   diagnosis                   String  @db.Text
   notes                       String? @db.Text
+
   prescriptionId              Int     @unique @map("prescription_id")
   checkupTestRecommendationId Int     @unique @map("checkup_test_recommendation_id")
 
@@ -342,11 +376,11 @@ model Medication {
   id             Int     @id @default(autoincrement())
   drugId         Int     @map("drug_id")
   prescriptionId Int     @map("prescription_id")
-  quantity       Int     @map("quantity")
-  dosage         String  @db.VarChar(100)
-  dailyFrequency Int  @map("daily_frequency")
-  durationDays   Int     @map("duration_days")
-  guidelines     String? @db.Text
+
+  dosePerIntake     String  @db.VarChar(100) // how much to take at one time (e.g. 500 mg)
+  timesPerDay       Int     @map("times_per_day") // how many times per day (e.g. 3)
+  totalDays        Int     @map("total_days") // total days (e.g. 5)
+  instructions      String? @db.Text // any extra usage guidelines
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
@@ -370,7 +404,7 @@ model CheckupTestRecommendation {
 
 model RecommendedLabTest {
   id               Int @id @default(autoincrement())
-  recommendationId Int @map("recommendation_id")
+  testRecommendationId Int @map("recommendation_id")
   labTestId        Int @map("lab_test_id")
 
   createdAt DateTime @default(now()) @map("created_at")
@@ -378,7 +412,7 @@ model RecommendedLabTest {
 
   // Relations
   labTest        LabTest                   @relation(fields: [labTestId], references: [id], onDelete: Cascade)
-  recommendation CheckupTestRecommendation @relation(fields: [recommendationId], references: [id], onDelete: Cascade)
+  recommendation CheckupTestRecommendation @relation(fields: [testRecommendationId], references: [id], onDelete: Cascade)
 }
 
 
@@ -403,6 +437,7 @@ enum PatientLabTestStatus {
   COMPLETED
   CANCELLED
 }
+
 model PatientLabTest {
   id         Int      @id @default(autoincrement())
   patientId  Int      @map("patient_id")
