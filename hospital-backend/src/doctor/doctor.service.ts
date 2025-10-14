@@ -313,10 +313,10 @@ interface DoctorInterface {
   id: number;
   user: {
     firstName: string;
-    lastName: string;
+    lastName: string | null;
     email: string;
     gender: string;
-    cnic: string;
+    cnic: string | null;
   };
   licenseNumber: string;
   specialization?: string;

@@ -73,7 +73,6 @@ export class JwtStrategy extends PassportStrategy(
       gender: user.gender,
       cnic: user.cnic,
       createdAt: user.createdAt,
-      registeredAt: user.registeredAt,
       isActive: user.isActive,
       roles,
     };

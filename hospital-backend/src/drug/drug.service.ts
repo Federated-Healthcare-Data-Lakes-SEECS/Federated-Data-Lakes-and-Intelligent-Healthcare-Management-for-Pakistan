@@ -21,7 +21,6 @@ export class DrugService {
         supplier: dto.supplier,
         strength: dto.strength,
         isActive: dto.isActive,
-        createdBy: creatorId,
       },
     });
 

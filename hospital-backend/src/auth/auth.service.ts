@@ -44,7 +44,6 @@ export class AuthService {
                     data: {
                         userId: user.id,
                         onboardingDone: false,
-                        createdBy: null,
                     },
                 });
 

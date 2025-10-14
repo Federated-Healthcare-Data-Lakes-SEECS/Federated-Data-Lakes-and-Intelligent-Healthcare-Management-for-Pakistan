@@ -55,7 +55,7 @@ export class PatientService {
                 const patient = await prisma.patient.create({
                     data: {
                         userId: user.id,
-                        createdBy: creatorId,
+                        onboardingDone: false,
                     },
                     include: {
                         user: true,

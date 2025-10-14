@@ -44,7 +44,6 @@ export class LabTestService {
         description: dto.description,
         departmentId: department.id,
         templateId: dto.templateId,
-        createdBy: creatorId,
       },
       include: { department: true, template: true },
     });
