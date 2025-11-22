@@ -4,8 +4,7 @@ import { Header } from "@/components/header"
 
 export default function DoctorLayout({ children }: { children: React.ReactNode }) {
   return (
-    <main>
-      <Header />
+    <main className="bg-background">
       <RoleGuard allowed={["DOCTOR"]}>{children}</RoleGuard>
     </main>
   )

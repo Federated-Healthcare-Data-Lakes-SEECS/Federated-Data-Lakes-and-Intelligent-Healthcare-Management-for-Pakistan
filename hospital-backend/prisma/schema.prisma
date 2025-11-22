@@ -10,7 +10,6 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
 }
 
 enum Gender {
@@ -35,7 +34,7 @@ model User {
   userRoles          UserRole[]
   doctor             Doctor?
   patient            Patient?            @relation(name: "User")
-  labTechnician     LabTechnician?
+  labTechnician      LabTechnician?
   receptionist       Receptionist?
   pathologist        Pathologist?
   @@map("users")

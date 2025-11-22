@@ -26,17 +26,16 @@ export class DoctorService {
       );
     }
 
-    // 2. Check for existing user with same email or CNIC
+    // 2. Check for existing user with same email
     const existingUser = await this.prisma.user.findFirst({
       where: {
-        OR: [{ email: dto.email }, { cnic: dto.cnic }],
+        OR: [{ email: dto.email }],
       },
     });
 
     if (existingUser) {
-      const conflictField = existingUser.email === dto.email ? 'email' : 'CNIC';
       throw new ConflictException(
-        `User with this ${conflictField} already exists`,
+        `User with this email already exists`,
       );
     }
 

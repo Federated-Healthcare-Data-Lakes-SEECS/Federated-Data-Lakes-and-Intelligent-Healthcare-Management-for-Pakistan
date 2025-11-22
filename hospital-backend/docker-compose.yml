@@ -6,7 +6,7 @@ services:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: 123
     ports:
-      - 5435:5432
+      - 5433:5432
     networks:
       - hospital_network
 

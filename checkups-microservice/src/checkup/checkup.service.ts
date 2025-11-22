@@ -3,7 +3,7 @@ import {
   BadRequestException,
   NotFoundException,
 } from '@nestjs/common';
-import { PrismaService } from 'src/prisma/prisma.service';
+import { PrismaService } from '../prisma/prisma.service';
 import { CreateCheckupDto } from './dto';
 
 @Injectable()
@@ -97,9 +97,9 @@ export class CheckupService {
             prescriptionId: prescription.id,
             drugId: med.drugId,
             quantity: med.quantity,
-            dosage: med.dosage,
-            dailyFrequency: med.dailyFrequency,
-            durationDays: med.durationDays,
+            dosePerIntake: med.dosage,
+            timesPerDay: med.dailyFrequency,
+            totalDays: med.durationDays,
             guidelines: med.guidelines,
           })),
         });
@@ -115,7 +115,7 @@ export class CheckupService {
       if (data.recommendedTests && data.recommendedTests.length > 0) {
         await prisma.recommendedLabTest.createMany({
           data: data.recommendedTests.map((test) => ({
-            recommendationId: checkupTestRecommendations.id,
+            testRecommendationId: checkupTestRecommendations.id,
             labTestId: test.testId,
           })),
         });

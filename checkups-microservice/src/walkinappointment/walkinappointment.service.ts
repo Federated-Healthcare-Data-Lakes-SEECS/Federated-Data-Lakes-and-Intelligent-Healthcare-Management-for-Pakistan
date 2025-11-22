@@ -3,7 +3,7 @@ import {
   NotFoundException,
   BadRequestException,
 } from '@nestjs/common';
-import { PrismaService } from 'src/prisma/prisma.service';
+import { PrismaService } from '../prisma/prisma.service';
 import { CreateWalkinAppointmentDto } from './dto/walkinappointment.dto';
 
 @Injectable()
@@ -36,7 +36,7 @@ export class WalkinAppointmentService {
       const walkinAppointment = await prisma.walkinAppointment.create({
         data: {
           appointmentId: appointment.id,
-          createdBy: data.createdBy,
+          receptionistId: data.createdBy,
         },
         include: { appointment: true },
       });
