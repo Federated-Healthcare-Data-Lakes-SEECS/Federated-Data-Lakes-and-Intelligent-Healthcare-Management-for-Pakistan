@@ -1,7 +1,6 @@
 import { Controller, Post, Put, Get, Patch, Param, Body, ParseIntPipe } from '@nestjs/common';
 import { LabTestTemplateService } from './labtesttemplate.service';
 import { RegisterLabTestTemplateDto, UpdateLabTestTemplateDto } from './dto/labtesttemplate.dto';
-import { GetUser } from 'src/auth/decorators';
 
 @Controller('labtesttemplate')
 export class LabTestTemplateController {

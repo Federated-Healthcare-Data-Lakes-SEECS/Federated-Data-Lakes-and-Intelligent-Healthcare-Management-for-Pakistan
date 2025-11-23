@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
-import { mockCheckups } from "@/lib/mock-data";
+import { useState, useEffect } from "react";
+import { getCheckupHistory } from "@/lib/api/doctor";
+import type { RecentCheckup } from "@/lib/api/doctor";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -18,7 +19,28 @@ import {
 } from 'lucide-react';
 
 export default function HistoryPage() {
-  const [selectedCheckup, setSelectedCheckup] = useState<any>(null);
+  const [checkups, setCheckups] = useState<RecentCheckup[]>([]);
+  const [selectedCheckup, setSelectedCheckup] = useState<RecentCheckup | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    async function fetchCheckups() {
+      try {
+        setLoading(true);
+        setError(null);
+        const data = await getCheckupHistory();
+        setCheckups(data);
+      } catch (err: any) {
+        console.error("Error fetching checkup history:", err);
+        setError(err.response?.data?.message || "Failed to load checkup history");
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    fetchCheckups();
+  }, []);
 
   const formatDate = (isoDate: string) => {
     return new Date(isoDate).toLocaleDateString("en-US", {
@@ -46,6 +68,26 @@ export default function HistoryPage() {
     return age;
   };
 
+  if (loading) {
+    return (
+      <div className="p-6 md:p-8 space-y-6">
+        <div className="flex items-center justify-center min-h-[400px]">
+          <p className="text-muted-foreground">Loading checkup history...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="p-6 md:p-8 space-y-6">
+        <div className="flex items-center justify-center min-h-[400px]">
+          <p className="text-destructive">{error}</p>
+        </div>
+      </div>
+    );
+  }
+
   if (selectedCheckup) {
     return <CheckupDetails checkup={selectedCheckup} onBack={() => setSelectedCheckup(null)} />;
   }
@@ -62,7 +104,7 @@ export default function HistoryPage() {
       </div>
 
       <div className="grid gap-4">
-        {mockCheckups.length === 0 ? (
+        {checkups.length === 0 ? (
           <Card className="border-0 shadow-sm">
             <CardContent className="py-12">
               <div className="text-center">
@@ -72,7 +114,7 @@ export default function HistoryPage() {
             </CardContent>
           </Card>
         ) : (
-          mockCheckups.map((checkup) => (
+          checkups.map((checkup) => (
             <Card
               key={checkup.id}
               className="border shadow-sm hover:shadow-md transition-all cursor-pointer"
@@ -98,8 +140,6 @@ export default function HistoryPage() {
                           </span>
                           <span>•</span>
                           <span>{formatTime(checkup.appointment.slot.startTime)}</span>
-                          <span>•</span>
-                          <span>{checkup.appointment.reason}</span>
                         </div>
                       </div>
 
@@ -108,18 +148,18 @@ export default function HistoryPage() {
                           {checkup.diagnosis.split(".")[0].substring(0, 50)}
                           {checkup.diagnosis.length > 50 ? "..." : ""}
                         </Badge>
-                        {checkup.prescription.medications.length > 0 && (
+                        {checkup.medications && checkup.medications.length > 0 && (
                           <Badge variant="secondary" className="text-xs gap-1">
                             <Pill className="w-3 h-3" />
-                            {checkup.prescription.medications.length} Medication
-                            {checkup.prescription.medications.length > 1 ? "s" : ""}
+                            {checkup.medications.length} Medication
+                            {checkup.medications.length > 1 ? "s" : ""}
                           </Badge>
                         )}
-                        {checkup.checkupTestRecommendation.recommendedLabTests.length > 0 && (
+                        {checkup.recommendedLabTests && checkup.recommendedLabTests.length > 0 && (
                           <Badge variant="secondary" className="text-xs gap-1">
                             <FlaskConical className="w-3 h-3" />
-                            {checkup.checkupTestRecommendation.recommendedLabTests.length} Test
-                            {checkup.checkupTestRecommendation.recommendedLabTests.length > 1 ? "s" : ""}
+                            {checkup.recommendedLabTests.length} Test
+                            {checkup.recommendedLabTests.length > 1 ? "s" : ""}
                           </Badge>
                         )}
                       </div>
@@ -137,7 +177,7 @@ export default function HistoryPage() {
   );
 }
 
-function CheckupDetails({ checkup, onBack }: { checkup: any; onBack: () => void }) {
+function CheckupDetails({ checkup, onBack }: { checkup: RecentCheckup; onBack: () => void }) {
   const formatDate = (isoDate: string) => {
     return new Date(isoDate).toLocaleDateString("en-US", {
       year: "numeric",
@@ -153,7 +193,8 @@ function CheckupDetails({ checkup, onBack }: { checkup: any; onBack: () => void 
     });
   };
 
-  const calculateAge = (dob: string) => {
+  const calculateAge = (dob?: string) => {
+    if (!dob) return "N/A";
     const birthDate = new Date(dob);
     const today = new Date();
     let age = today.getFullYear() - birthDate.getFullYear();
@@ -165,7 +206,7 @@ function CheckupDetails({ checkup, onBack }: { checkup: any; onBack: () => void 
   };
 
   const patient = checkup.appointment.patient;
-  const ageYears = calculateAge(patient.dateOfBirth);
+  const ageYears = "N/A"; // Patient DOB not included in API response
 
   return (
     <div className="p-6 md:p-8 space-y-6 animate-in fade-in slide-in-from-right-2">
@@ -180,27 +221,16 @@ function CheckupDetails({ checkup, onBack }: { checkup: any; onBack: () => void 
         <Card className="border shadow-sm bg-gradient-to-r from-secondary/40 via-secondary/20 to-secondary/10">
           <CardContent className="pt-6">
             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 flex-1">
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 flex-1">
                 <InfoItem
                   label="Patient"
                   value={`${patient.firstName} ${patient.lastName}`}
                 />
                 <InfoItem label="Age" value={`${ageYears} yrs`} />
-                <InfoItem label="Blood Group" value={patient.bloodGroup} />
                 <InfoItem
                   label="Date"
                   value={formatDate(checkup.appointment.slot.startTime)}
                 />
-              </div>
-              <div className="text-xs md:text-sm text-muted-foreground md:w-56">
-                <p className="line-clamp-2">
-                  <strong>History:</strong> {patient.medicalHistory || "N/A"}
-                </p>
-                {patient.allergies && patient.allergies !== "None" && (
-                  <p className="mt-1 text-destructive">
-                    <strong>⚠️ Allergies:</strong> {patient.allergies}
-                  </p>
-                )}
               </div>
             </div>
           </CardContent>
@@ -209,17 +239,17 @@ function CheckupDetails({ checkup, onBack }: { checkup: any; onBack: () => void 
         {/* Vitals */}
         <SectionCard icon={<Activity className="w-4 h-4" />} title="Vital Signs">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <VitalCard label="Blood Pressure" value={checkup.bloodPressure} unit="mmHg" />
-            <VitalCard label="Temperature" value={checkup.temperature} unit="°F" />
-            <VitalCard label="Heart Rate" value={checkup.heartRate} unit="bpm" />
-            <VitalCard label="Blood Sugar" value={checkup.bloodSugar} unit="mg/dL" />
+            <VitalCard label="Blood Pressure" value={checkup.bloodPressure || "N/A"} unit="mmHg" />
+            <VitalCard label="Temperature" value={checkup.temperature || "N/A"} unit="°F" />
+            <VitalCard label="Heart Rate" value={checkup.heartRate || "N/A"} unit="bpm" />
+            <VitalCard label="Blood Sugar" value={checkup.bloodSugar || "N/A"} unit="mg/dL" />
           </div>
         </SectionCard>
 
         {/* Clinical Info */}
         <SectionCard icon={<Stethoscope className="w-4 h-4" />} title="Clinical Information">
           <div className="space-y-4">
-            <InfoBlock label="Symptoms" content={checkup.symptoms} />
+            <InfoBlock label="Symptoms" content={checkup.symptoms || "No symptoms recorded"} />
             <InfoBlock label="Diagnosis" content={checkup.diagnosis} highlight />
             {checkup.notes && <InfoBlock label="Notes" content={checkup.notes} />}
           </div>
@@ -228,20 +258,24 @@ function CheckupDetails({ checkup, onBack }: { checkup: any; onBack: () => void 
         {/* Prescription */}
         <SectionCard icon={<Pill className="w-4 h-4" />} title="Prescription">
           <div className="space-y-3">
-            {checkup.prescription.medications.length === 0 ? (
+            {!checkup.medications || checkup.medications.length === 0 ? (
               <p className="text-sm text-muted-foreground">No medications prescribed</p>
             ) : (
-              checkup.prescription.medications.map((med: any) => (
+              checkup.medications.map((med) => (
                 <div
-                  key={med.id}
+                  key={med.drugId}
                   className="p-4 border rounded-lg bg-muted/30 space-y-2"
                 >
                   <div className="flex items-start justify-between">
                     <div>
-                      <p className="font-semibold text-foreground">{med.drug.name}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {med.drug.formulaName} • {med.drug.strength} • {med.drug.dosageForm}
-                      </p>
+                      <p className="font-semibold text-foreground">{med.drug?.name || "Unknown Drug"}</p>
+                      {med.drug && (
+                        <p className="text-xs text-muted-foreground">
+                          {med.drug.formulaName && `${med.drug.formulaName} • `}
+                          {med.drug.strength && `${med.drug.strength} • `}
+                          {med.drug.dosageForm}
+                        </p>
+                      )}
                     </div>
                   </div>
                   <div className="grid grid-cols-2 md:grid-cols-3 gap-2 text-xs">
@@ -266,13 +300,13 @@ function CheckupDetails({ checkup, onBack }: { checkup: any; onBack: () => void 
                 </div>
               ))
             )}
-            {checkup.prescription.additionalMedications && (
+            {checkup.additionalMedications && (
               <div className="p-3 bg-secondary/20 rounded-lg border border-dashed">
                 <p className="text-xs font-medium text-foreground mb-1">
                   Additional Medications
                 </p>
                 <p className="text-xs text-muted-foreground">
-                  {checkup.prescription.additionalMedications}
+                  {checkup.additionalMedications}
                 </p>
               </div>
             )}
@@ -282,24 +316,24 @@ function CheckupDetails({ checkup, onBack }: { checkup: any; onBack: () => void 
         {/* Lab Tests */}
         <SectionCard icon={<FlaskConical className="w-4 h-4" />} title="Lab Test Recommendations">
           <div className="space-y-3">
-            {checkup.checkupTestRecommendation.recommendedLabTests.length === 0 ? (
+            {!checkup.recommendedLabTests || checkup.recommendedLabTests.length === 0 ? (
               <p className="text-sm text-muted-foreground">No lab tests recommended</p>
             ) : (
               <div className="flex flex-wrap gap-2">
-                {checkup.checkupTestRecommendation.recommendedLabTests.map((test: any) => (
+                {checkup.recommendedLabTests.map((test) => (
                   <Badge key={test.id} variant="outline" className="py-1.5 px-3">
-                    {test.labTest.name}
+                    {test.name}
                   </Badge>
                 ))}
               </div>
             )}
-            {checkup.checkupTestRecommendation.additionalTests && (
+            {checkup.additionalTests && (
               <div className="p-3 bg-secondary/20 rounded-lg border border-dashed">
                 <p className="text-xs font-medium text-foreground mb-1">
                   Additional Tests
                 </p>
                 <p className="text-xs text-muted-foreground">
-                  {checkup.checkupTestRecommendation.additionalTests}
+                  {checkup.additionalTests}
                 </p>
               </div>
             )}

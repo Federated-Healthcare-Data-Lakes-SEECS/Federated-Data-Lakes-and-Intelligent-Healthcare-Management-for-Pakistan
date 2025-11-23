@@ -8,6 +8,7 @@ import * as bcrypt from 'bcryptjs';
 import {
     RegisterPatientDto,
     PatientResponseDto,
+    UpdatePatientProfileDto,
 } from './dto';
 import { plainToInstance } from 'class-transformer';
 
@@ -15,7 +16,7 @@ import { plainToInstance } from 'class-transformer';
 export class PatientService {
     constructor(private prisma: PrismaService) {}
 
-    async registerPatient(dto: RegisterPatientDto, creatorId: number): Promise<PatientResponseDto> {
+    async registerPatient(dto: RegisterPatientDto, _creatorId: number): Promise<PatientResponseDto> {
         // 1. Check for existing user with same email or CNIC
         const existingUser = await this.prisma.user.findFirst({
             where: {
@@ -71,7 +72,7 @@ export class PatientService {
                     throw new NotFoundException('Role "PATIENT" not found');
                 }
 
-                const userRole = await prisma.userRole.create({
+                await prisma.userRole.create({
                     data: {
                         userId: user.id,
                         roleId: role.id,
@@ -84,7 +85,7 @@ export class PatientService {
             return plainToInstance(PatientResponseDto, {
                 ...patient.user,
             });
-        } catch (error) {
+        } catch {
             throw new BadRequestException('Error creating patient');
         }
     }
@@ -101,5 +102,297 @@ export class PatientService {
         });
 
         return patients.map(patient => plainToInstance(PatientResponseDto, patient.user));
+    }
+
+    async getPatientProfile(userId: number) {
+        const patient = await this.prisma.patient.findUnique({
+            where: { userId },
+            include: {
+                user: true,
+            },
+        });
+
+        if (!patient) {
+            throw new NotFoundException('Patient profile not found');
+        }
+
+        return {
+            id: patient.id,
+            userId: patient.userId,
+            firstName: patient.user.firstName,
+            lastName: patient.user.lastName,
+            email: patient.user.email,
+            gender: patient.user.gender,
+            cnic: patient.user.cnic,
+            dateOfBirth: patient.dateOfBirth,
+            bloodGroup: patient.bloodGroup,
+            medicalHistory: patient.medicalHistory,
+            familyHistory: patient.familyHistory,
+            allergies: patient.allergies,
+            address: patient.address,
+            phoneNumber: patient.phoneNumber,
+            emergencyContact: patient.emergencyContact,
+            onboardingDone: patient.onboardingDone,
+            onboardedAt: patient.onboardedAt,
+            createdAt: patient.createdAt,
+            updatedAt: patient.updatedAt,
+        };
+    }
+
+    async updatePatientProfile(userId: number, dto: UpdatePatientProfileDto) {
+        const patient = await this.prisma.patient.findUnique({
+            where: { userId },
+        });
+
+        if (!patient) {
+            throw new NotFoundException('Patient profile not found');
+        }
+
+        const updatedPatient = await this.prisma.patient.update({
+            where: { id: patient.id },
+            data: {
+                ...dto,
+                dateOfBirth: dto.dateOfBirth ? new Date(dto.dateOfBirth) : undefined,
+                onboardedAt: dto.onboardingDone && !patient.onboardingDone ? new Date() : undefined,
+            },
+            include: {
+                user: true,
+            },
+        });
+
+        return {
+            id: updatedPatient.id,
+            userId: updatedPatient.userId,
+            firstName: updatedPatient.user.firstName,
+            lastName: updatedPatient.user.lastName,
+            email: updatedPatient.user.email,
+            gender: updatedPatient.user.gender,
+            cnic: updatedPatient.user.cnic,
+            dateOfBirth: updatedPatient.dateOfBirth,
+            bloodGroup: updatedPatient.bloodGroup,
+            medicalHistory: updatedPatient.medicalHistory,
+            familyHistory: updatedPatient.familyHistory,
+            allergies: updatedPatient.allergies,
+            address: updatedPatient.address,
+            phoneNumber: updatedPatient.phoneNumber,
+            emergencyContact: updatedPatient.emergencyContact,
+            onboardingDone: updatedPatient.onboardingDone,
+            onboardedAt: updatedPatient.onboardedAt,
+        };
+    }
+
+    async getDashboardStats(userId: number) {
+        const patient = await this.prisma.patient.findUnique({
+            where: { userId },
+        });
+
+        if (!patient) {
+            throw new NotFoundException('Patient profile not found');
+        }
+
+        const now = new Date();
+
+        // Get upcoming appointments count
+        const upcomingAppointmentsCount = await this.prisma.appointment.count({
+            where: {
+                patientId: patient.id,
+                slot: {
+                    startTime: {
+                        gte: now,
+                    },
+                },
+                onlineAppointment: {
+                    status: 'BOOKED',
+                },
+            },
+        });
+
+        // Get completed checkups count
+        const completedCheckupsCount = await this.prisma.checkup.count({
+            where: {
+                appointment: {
+                    patientId: patient.id,
+                },
+            },
+        });
+
+        // Get pending lab tests count
+        const pendingLabTestsCount = await this.prisma.patientLabTest.count({
+            where: {
+                patientId: patient.id,
+                status: 'PENDING',
+            },
+        });
+
+        return {
+            upcomingAppointments: upcomingAppointmentsCount,
+            completedCheckups: completedCheckupsCount,
+            pendingLabTests: pendingLabTestsCount,
+        };
+    }
+
+    async getUpcomingAppointments(userId: number, limit: number = 5) {
+        const patient = await this.prisma.patient.findUnique({
+            where: { userId },
+        });
+
+        if (!patient) {
+            throw new NotFoundException('Patient profile not found');
+        }
+
+        const now = new Date();
+
+        // Fetch both online and walk-in appointments
+        const appointments = await this.prisma.appointment.findMany({
+            where: {
+                patientId: patient.id,
+                slot: {
+                    startTime: {
+                        gte: now,
+                    },
+                },
+                OR: [
+                    { onlineAppointment: { isNot: null } },
+                    { walkinAppointment: { isNot: null } },
+                ],
+            },
+            include: {
+                slot: {
+                    include: {
+                        schedule: {
+                            include: {
+                                doctor: {
+                                    include: {
+                                        user: true,
+                                        department: true,
+                                    },
+                                },
+                            },
+                        },
+                    },
+                },
+                onlineAppointment: true,
+                walkinAppointment: true,
+            },
+            orderBy: {
+                slot: {
+                    startTime: 'asc',
+                },
+            },
+            take: limit,
+        });
+
+        // Map appointments and determine type
+        return appointments.map((apt) => {
+            const isOnline = !!apt.onlineAppointment;
+            const status = isOnline 
+                ? apt.onlineAppointment!.status 
+                : apt.walkinAppointment!.status;
+
+            return {
+                id: apt.id,
+                reason: apt.reason,
+                status,
+                appointmentType: isOnline ? 'online' : 'walk-in',
+                startTime: apt.slot.startTime,
+                endTime: apt.slot.endTime,
+                doctor: {
+                    firstName: apt.slot.schedule.doctor.user.firstName,
+                    lastName: apt.slot.schedule.doctor.user.lastName,
+                    specialization: apt.slot.schedule.doctor.specialization,
+                    departmentName: apt.slot.schedule.doctor.department.name,
+                },
+            };
+        });
+    }
+
+    async getRecentCheckups(userId: number, limit: number = 5) {
+        const patient = await this.prisma.patient.findUnique({
+            where: { userId },
+        });
+
+        if (!patient) {
+            throw new NotFoundException('Patient profile not found');
+        }
+
+        const checkups = await this.prisma.checkup.findMany({
+            where: {
+                appointment: {
+                    patientId: patient.id,
+                },
+            },
+            include: {
+                appointment: {
+                    include: {
+                        slot: {
+                            include: {
+                                schedule: {
+                                    include: {
+                                        doctor: {
+                                            include: {
+                                                user: true,
+                                                department: true,
+                                            },
+                                        },
+                                    },
+                                },
+                            },
+                        },
+                    },
+                },
+                prescription: {
+                    include: {
+                        medications: {
+                            include: {
+                                drug: true,
+                            },
+                        },
+                    },
+                },
+                checkupTestRecommendation: {
+                    include: {
+                        recommendedLabTests: {
+                            include: {
+                                labTest: true,
+                            },
+                        },
+                    },
+                },
+            },
+            orderBy: {
+                createdAt: 'desc',
+            },
+            take: limit,
+        });
+
+        return checkups.map((checkup) => ({
+            id: checkup.id,
+            date: checkup.createdAt,
+            bloodPressure: checkup.bloodPressure,
+            temperature: checkup.temperature,
+            heartRate: checkup.heartRate,
+            bloodSugar: checkup.bloodSugar,
+            symptoms: checkup.symptoms,
+            diagnosis: checkup.diagnosis,
+            notes: checkup.notes,
+            doctor: {
+                firstName: checkup.appointment.slot.schedule.doctor.user.firstName,
+                lastName: checkup.appointment.slot.schedule.doctor.user.lastName,
+                specialization: checkup.appointment.slot.schedule.doctor.specialization,
+                departmentName: checkup.appointment.slot.schedule.doctor.department.name,
+            },
+            medications: checkup.prescription.medications.map((med) => ({
+                drugName: med.drug.name,
+                dosePerIntake: med.dosePerIntake,
+                timesPerDay: med.timesPerDay,
+                totalDays: med.totalDays,
+                instructions: med.instructions,
+            })),
+            recommendedLabTests: checkup.checkupTestRecommendation.recommendedLabTests.map((test) => ({
+                id: test.labTest.id,
+                name: test.labTest.name,
+                description: test.labTest.description,
+            })),
+        }));
     }
 }

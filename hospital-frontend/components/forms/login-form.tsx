@@ -50,6 +50,11 @@ export function LoginForm() {
         return
       }
 
+      if (me.roles?.includes("RECEPTIONIST")) {
+        router.replace("/receptionist/dashboard")
+        return
+      }
+
       if (me.roles?.includes("PATIENT")) {
         if (me.patient && !me.patient.onboardingDone) {
           router.replace("/onboarding")

@@ -11,16 +11,17 @@ import { GetUser } from '../auth/decorators';
 import { JwtGuard } from '../auth/guards';
 import { LabTestService } from './labtest.service';
 import { RegisterLabTestDto, UpdateLabTestDto } from './dto';
-import { Roles, UserRole } from 'src/common/decorators/roles.decorator';
-import { RolesGuard } from 'src/common/guards/roles.guard';
+import { Roles, UserRole } from '../common/decorators/roles.decorator';
+import { RolesGuard } from '../common/guards/roles.guard';
 
-@UseGuards(JwtGuard, RolesGuard)
-@Roles(UserRole.ADMIN)
+@UseGuards(JwtGuard)
 @Controller('lab-tests')
 export class LabTestController {
   constructor(private labTestService: LabTestService) {}
 
   @Post('register')
+  @UseGuards(RolesGuard)
+  @Roles(UserRole.ADMIN)
   registerLabTest(
     @Body() dto: RegisterLabTestDto,
     @GetUser('id') creatorId: number,
@@ -29,6 +30,8 @@ export class LabTestController {
   }
 
   @Patch(':id')
+  @UseGuards(RolesGuard)
+  @Roles(UserRole.ADMIN)
   updateLabTest(@Param('id') id: string, @Body() dto: UpdateLabTestDto) {
     return this.labTestService.updateLabTest(parseInt(id), dto);
   }
@@ -39,6 +42,8 @@ export class LabTestController {
   }
 
   @Patch(':id/toggle')
+  @UseGuards(RolesGuard)
+  @Roles(UserRole.ADMIN)
   toggleLabTest(@Param('id') id: string) {
     return this.labTestService.toggleLabTest(parseInt(id));
   }

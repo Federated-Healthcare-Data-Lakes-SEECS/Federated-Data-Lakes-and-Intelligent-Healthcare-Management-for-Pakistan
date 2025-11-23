@@ -1,16 +1,27 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+"use client";
+
+import { useState } from "react";
+import PatientDashboardPage from "@/components/patient/dashboard/dashboard-page";
+import PatientAppointmentsPage from "@/components/patient/appointments/appointments-page";
+import PatientHistoryPage from "@/components/patient/history/history-page";
+import BookAppointmentPage from "@/components/patient/booking/book-appointment-page";
+import PatientNavigation from "@/components/patient/patient-navigation";
 
 export default function PatientDashboard() {
+  const [currentPage, setCurrentPage] = useState<
+    "dashboard" | "appointments" | "history" | "book"
+  >("dashboard");
+
   return (
-    <section className="mx-auto max-w-6xl px-4 py-12">
-      <Card>
-        <CardHeader>
-          <CardTitle>Patient Dashboard</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p className="text-muted-foreground">Your appointments, prescriptions, and records will appear here.</p>
-        </CardContent>
-      </Card>
-    </section>
-  )
+    <div className="flex h-screen bg-background">
+      <PatientNavigation currentPage={currentPage} setCurrentPage={setCurrentPage} />
+
+      <main className="flex-1 overflow-auto">
+        {currentPage === "dashboard" && <PatientDashboardPage />}
+        {currentPage === "appointments" && <PatientAppointmentsPage />}
+        {currentPage === "history" && <PatientHistoryPage />}
+        {currentPage === "book" && <BookAppointmentPage />}
+      </main>
+    </div>
+  );
 }

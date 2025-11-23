@@ -1,7 +1,7 @@
 import { Module } from '@nestjs/common';
 import { WalkinAppointmentService } from './walkinappointment.service';
 import { WalkinAppointmentController } from './walkinappointment.controller';
-import { PrismaService } from 'src/prisma/prisma.service';
+import { PrismaService } from '../prisma/prisma.service';
 
 @Module({
   controllers: [WalkinAppointmentController],

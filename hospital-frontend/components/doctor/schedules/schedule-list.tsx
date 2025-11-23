@@ -3,24 +3,55 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Calendar, Clock, Grid3x3, EyeOff, CheckCircle, XCircle, RefreshCcw } from 'lucide-react';
-import { getScheduleWithSlots, toggleSlotBookable, cancelAppointment } from "@/lib/utils-doctor";
-import { useState } from 'react';
+import { Calendar, Clock, Grid3x3, Trash2 } from 'lucide-react';
+import { deleteSchedule } from "@/lib/api/doctor";
+import type { Schedule } from "@/lib/api/doctor";
 
-interface ScheduleListProps { schedules: any[]; }
+interface ScheduleListProps { 
+  schedules: Schedule[];
+  onScheduleDeleted?: () => void;
+}
 
-export default function ScheduleList({ schedules }: ScheduleListProps) {
-  const [refreshKey, setRefreshKey] = useState(0);
-  const rerender = () => setRefreshKey(k => k + 1);
+export default function ScheduleList({ schedules, onScheduleDeleted }: ScheduleListProps) {
+  const handleDelete = async (scheduleId: number) => {
+    if (!confirm("Are you sure you want to delete this schedule? This action cannot be undone.")) {
+      return;
+    }
+
+    try {
+      await deleteSchedule(scheduleId);
+      alert("Schedule deleted successfully!");
+      onScheduleDeleted?.();
+    } catch (error: any) {
+      console.error("Error deleting schedule:", error);
+      alert(error.response?.data?.message || "Failed to delete schedule");
+    }
+  };
+
+  if (schedules.length === 0) {
+    return (
+      <Card className="border-0 shadow-sm">
+        <CardContent className="py-12">
+          <div className="flex flex-col items-center gap-3 text-center">
+            <Calendar className="w-12 h-12 text-muted-foreground" />
+            <div>
+              <h3 className="font-semibold text-lg">No Schedules Yet</h3>
+              <p className="text-sm text-muted-foreground mt-1">Create your first schedule to start accepting appointments</p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
-    <div className="space-y-6" key={refreshKey}>
+    <div className="space-y-6">
       {schedules.map((schedule) => {
-        const full = getScheduleWithSlots(schedule.id);
-        if (!full) return null;
-        const booked = full.slots.filter((s: any) => s.isBooked).length;
-        const unbookable = full.slots.filter((s: any) => !s.isBookable && !s.isBooked).length;
-        const available = full.slots.length - booked - unbookable;
+        const booked = schedule.appointmentSlots.filter(s => s.isBooked).length;
+        const unbookable = schedule.appointmentSlots.filter(s => !s.isBookable && !s.isBooked).length;
+        const available = schedule.appointmentSlots.length - booked - unbookable;
+        const scheduleDate = new Date(schedule.from);
+        const scheduleEndDate = new Date(schedule.to);
 
         return (
           <Card key={schedule.id} className="border-0 shadow-sm">
@@ -29,42 +60,46 @@ export default function ScheduleList({ schedules }: ScheduleListProps) {
                 <div className="space-y-1">
                   <CardTitle className="text-sm font-semibold tracking-wide flex items-center gap-2">
                     <Calendar className="w-4 h-4 text-primary" />
-                    {schedule.from.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
+                    {scheduleDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })}
                   </CardTitle>
                   <p className="text-xs text-muted-foreground flex items-center gap-2">
                     <Clock className="w-3 h-3" />
-                    {schedule.from.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} - {schedule.to.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    {scheduleDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} - {scheduleEndDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                   </p>
                 </div>
-                <div className="flex gap-2">
-                  <Badge variant="outline" className="text-xs gap-1"><Grid3x3 className="w-3 h-3" /> {full.slots.length} slots</Badge>
+                <div className="flex gap-2 items-center flex-wrap">
+                  <Badge variant="outline" className="text-xs gap-1"><Grid3x3 className="w-3 h-3" /> {schedule.appointmentSlots.length} slots</Badge>
                   <Badge variant="secondary" className="text-xs">{booked} booked</Badge>
                   <Badge variant="outline" className="text-xs">{available} available</Badge>
-                  <Badge variant="destructive" className="text-xs bg-destructive/10 text-destructive border-destructive/30">{unbookable} blocked</Badge>
+                  {unbookable > 0 && (
+                    <Badge variant="destructive" className="text-xs bg-destructive/10 text-destructive border-destructive/30">{unbookable} blocked</Badge>
+                  )}
+                  <Button 
+                    size="sm" 
+                    variant="destructive" 
+                    onClick={() => handleDelete(schedule.id)}
+                    className="h-7"
+                  >
+                    <Trash2 className="w-3 h-3" />
+                  </Button>
                 </div>
               </div>
             </CardHeader>
             <CardContent>
               <div className="grid sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 mt-2">
-                {full.slots.map((slot: any) => {
+                {schedule.appointmentSlots.map((slot) => {
                   const status = slot.isBooked ? 'booked' : (!slot.isBookable ? 'unbookable' : 'available');
+                  const slotStartTime = new Date(slot.startTime);
+                  const slotEndTime = new Date(slot.endTime);
+                  
                   return (
                     <div key={slot.id} className={`p-3 rounded-md border text-xs flex flex-col gap-2 ${status === 'booked' ? 'bg-primary/10 border-primary/30' : status === 'unbookable' ? 'bg-muted/40 border-muted-foreground/20' : 'bg-secondary/20 border-secondary/30'}`}>
                       <div className="flex justify-between items-center">
-                        <span className="font-medium">{slot.startTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                        <div>
+                          <span className="font-medium block">{slotStartTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                          <span className="text-[10px] text-muted-foreground">{slotEndTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                        </div>
                         <StatusBadge status={status} />
-                      </div>
-                      <div className="flex gap-1 flex-wrap">
-                        {status === 'booked' && (
-                          <Button size="sm" variant="outline" className="h-7 text-[10px]" onClick={() => { cancelAppointment(slot.id); rerender(); }}>
-                            <XCircle className="w-3 h-3" /> Cancel
-                          </Button>
-                        )}
-                        {status !== 'booked' && (
-                          <Button size="sm" variant="outline" className="h-7 text-[10px]" onClick={() => { toggleSlotBookable(slot.id); rerender(); }}>
-                            {slot.isBookable ? <EyeOff className="w-3 h-3" /> : <CheckCircle className="w-3 h-3" />} {slot.isBookable ? 'Block' : 'Unblock'}
-                          </Button>
-                        )}
                       </div>
                     </div>
                   );

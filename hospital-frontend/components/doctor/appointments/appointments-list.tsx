@@ -5,30 +5,12 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { User, Clock, FileText, X, AlertCircle } from "lucide-react";
 
-interface AppointmentProps {
-  id: number;
-  patientId: number;
-  slotId: number;
-  scheduleId: number;
-  startTime: string; // ISO datetime string
-  endTime: string; // ISO datetime string
-  reason: string;
-  status: string;
-  patient: {
-    firstName: string;
-    lastName: string;
-    dateOfBirth: string;
-    bloodGroup: string;
-    medicalHistory?: string;
-    allergies?: string;
-  };
-  createdAt: string;
-}
+import type { UpcomingAppointment } from "@/lib/api/doctor";
 
 interface AppointmentsListProps {
-  appointments: AppointmentProps[];
-  selectedAppointment: AppointmentProps | null;
-  onSelectAppointment: (apt: AppointmentProps) => void;
+  appointments: UpcomingAppointment[];
+  selectedAppointment: UpcomingAppointment | null;
+  onSelectAppointment: (apt: UpcomingAppointment) => void;
   onCancelAppointment: (id: number) => void;
 }
 
@@ -68,6 +50,9 @@ export default function AppointmentsList({
         const timeRange = formatTimeRange(apt.startTime, apt.endTime);
         const isSelected = selectedAppointment?.id === apt.id;
         const isCancelled = apt.status === "cancelled";
+        const patientAge = apt.patient.dateOfBirth 
+          ? Math.floor((Date.now() - new Date(apt.patient.dateOfBirth).getTime()) / (365.25 * 24 * 60 * 60 * 1000))
+          : null;
 
         return (
           <Card
@@ -87,6 +72,7 @@ export default function AppointmentsList({
                       <p className="font-semibold text-foreground text-lg">
                         {apt.patient.firstName} {apt.patient.lastName}
                       </p>
+                      {patientAge && <span className="text-xs text-muted-foreground">({patientAge}y)</span>}
                       <Badge
                         variant={isCancelled ? 'secondary' : 'outline'}
                         className={`capitalize ${isCancelled ? 'bg-destructive/10 text-destructive border-destructive/20' : ''}`}
@@ -100,6 +86,7 @@ export default function AppointmentsList({
                       </span>
                       <span>{date}</span>
                       <Badge variant="outline" className="bg-accent/5">{apt.reason}</Badge>
+                      {apt.patient.bloodGroup && <Badge variant="secondary">{apt.patient.bloodGroup}</Badge>}
                     </div>
                   </div>
                 </div>

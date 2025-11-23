@@ -10,8 +10,8 @@ import {
 import { JwtGuard } from '../auth/guards';
 import { DepartmentService } from './department.service';
 import { RegisterDepartmentDto, UpdateDepartmentDto } from './dto';
-import { Roles, UserRole } from 'src/common/decorators/roles.decorator';
-import { RolesGuard } from 'src/common/guards/roles.guard';
+import { Roles, UserRole } from '../common/decorators/roles.decorator';
+import { RolesGuard } from '../common/guards/roles.guard';
 
 @UseGuards(JwtGuard, RolesGuard)
 @Roles(UserRole.ADMIN)

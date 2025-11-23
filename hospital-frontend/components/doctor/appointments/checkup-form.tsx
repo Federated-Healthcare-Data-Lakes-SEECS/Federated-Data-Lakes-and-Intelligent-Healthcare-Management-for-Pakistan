@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
+import { createCheckup } from "@/lib/api/doctor";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -16,35 +17,20 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Plus, X, Activity, Stethoscope, Pill, FlaskConical, ClipboardList, Undo2 } from 'lucide-react';
 
+import type { UpcomingAppointment, Drug, LabTest } from "@/lib/api/doctor";
+
 interface CheckupFormProps {
-  appointment: {
-    id: number;
-    patientId: number;
-    slotId: number;
-    scheduleId: number;
-    startTime: string;
-    endTime: string;
-    reason: string;
-    patient: {
-      firstName: string;
-      lastName: string;
-      dateOfBirth: string;
-      bloodGroup: string;
-      medicalHistory?: string;
-      allergies?: string;
-    };
-    createdAt: string;
-  };
-  drugs: { id: number; name: string; strength: string; dosageForm: string; formulaName: string; }[];
-  labTests: { id: number; name: string; }[];
+  appointment: UpcomingAppointment;
+  drugs: Drug[];
+  labTests: LabTest[];
 }
 
 interface MedicationForm {
   drugId: number;
   name: string;
-  strength: string;
-  dosageForm: string;
-  formulaName: string;
+  strength?: string;
+  dosageForm?: string;
+  formulaName?: string;
   quantity: number;
   dosage: string;
   dailyFrequency: number;
@@ -155,39 +141,50 @@ export default function CheckupForm({
     setSelectedLabTests(selectedLabTests.filter((t) => t.testId !== testId));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!isFormValid) return;
     setSubmitting(true);
-    const checkupData = {
-      appointmentId: appointment.id,
-      bloodPressure: formData.bloodPressure,
-      temperature: formData.temperature,
-      heartRate: formData.heartRate,
-      bloodSugar: formData.bloodSugar,
-      symptoms: formData.symptoms,
-      diagnosis: formData.diagnosis,
-      notes: formData.notes,
-      additionalMedications: formData.additionalMedications,
-      additionalTests: formData.additionalTests,
-      medications: selectedDrugs.map(({ drugId, quantity, dosage, dailyFrequency, durationDays, guidelines }) => ({
-        drugId,
-        quantity,
-        dosage,
-        dailyFrequency,
-        durationDays,
-        guidelines,
-      })),
-      recommendedTests: selectedLabTests.map(({ testId }) => ({ testId })),
-    };
-    console.log(checkupData);
-    setTimeout(() => {
+    
+    try {
+      const checkupData = {
+        appointmentId: appointment.id,
+        bloodPressure: formData.bloodPressure || undefined,
+        temperature: formData.temperature || undefined,
+        heartRate: formData.heartRate || undefined,
+        bloodSugar: formData.bloodSugar || undefined,
+        symptoms: formData.symptoms,
+        diagnosis: formData.diagnosis,
+        notes: formData.notes || undefined,
+        additionalMedications: formData.additionalMedications || undefined,
+        additionalTests: formData.additionalTests || undefined,
+        medications: selectedDrugs.map(({ drugId, dosage, dailyFrequency, durationDays, guidelines }) => ({
+          drugId,
+          dosePerIntake: dosage,
+          timesPerDay: dailyFrequency,
+          totalDays: durationDays,
+          instructions: guidelines || undefined,
+        })),
+        recommendedLabTestIds: selectedLabTests.map(({ testId }) => testId),
+      };
+      
+      await createCheckup(checkupData);
       alert("Checkup saved successfully!");
+      
+      // Reset form after successful submission
+      setTimeout(() => {
+        resetForm();
+      }, 300);
+    } catch (error: any) {
+      console.error("Error submitting checkup:", error);
+      alert(error.response?.data?.message || "Failed to save checkup. Please try again.");
+    } finally {
       setSubmitting(false);
-    }, 600);
+    }
   };
 
   const ageYears = useMemo(() => {
+    if (!appointment.patient.dateOfBirth) return "N/A";
     const dob = new Date(appointment.patient.dateOfBirth);
     const now = new Date();
     let age = now.getFullYear() - dob.getFullYear();
@@ -205,7 +202,7 @@ export default function CheckupForm({
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 flex-1">
               <InfoItem label="Patient" value={`${appointment.patient.firstName} ${appointment.patient.lastName}`} />
               <InfoItem label="Age" value={`${ageYears} yrs`} />
-              <InfoItem label="Blood Group" value={appointment.patient.bloodGroup} />
+              <InfoItem label="Blood Group" value={appointment.patient.bloodGroup || "N/A"} />
               <InfoItem label="Appt Time" value={new Date(appointment.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} />
             </div>
             <div className="text-xs md:text-sm text-muted-foreground md:w-48">

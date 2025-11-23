@@ -9,8 +9,8 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { JwtGuard } from '../auth/guards';
-import { Roles, UserRole } from 'src/common/decorators/roles.decorator';
-import { RolesGuard } from 'src/common/guards/roles.guard';
+import { Roles, UserRole } from '../common/decorators/roles.decorator';
+import { RolesGuard } from '../common/guards/roles.guard';
 import { GetUser } from '../auth/decorators';
 import { DoctorScheduleService } from './doctorschedule.service';
 import { CreateDoctorScheduleDto } from './dto';

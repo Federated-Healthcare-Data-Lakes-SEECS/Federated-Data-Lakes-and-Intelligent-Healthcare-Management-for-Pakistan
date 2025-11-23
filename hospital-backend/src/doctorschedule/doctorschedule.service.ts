@@ -1,20 +1,14 @@
-import { Injectable, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  BadRequestException,
+  NotFoundException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateDoctorScheduleDto } from './dto';
-import { HttpService } from '@nestjs/axios';
-import { firstValueFrom } from 'rxjs';
-import { AxiosError } from 'axios';
-import { DoctorSchedule } from '@prisma/client';
 
 @Injectable()
 export class DoctorScheduleService {
-  constructor(
-    private readonly prisma: PrismaService,
-    private readonly httpService: HttpService,
-  ) {}
-
-  private readonly scheduleServiceBaseUrl =
-    process.env.CHECKUP_MICROSERVICE_URL || 'http://localhost:3001';
+  constructor(private readonly prisma: PrismaService) {}
 
   async createDoctorSchedule(userId: number, dto: CreateDoctorScheduleDto) {
     // Check doctor existence
@@ -23,22 +17,68 @@ export class DoctorScheduleService {
       throw new BadRequestException('User is not a doctor or does not exist');
     }
 
-    // Send request to schedule microservice
-    try {
-      const response = await firstValueFrom(
-        this.httpService.post(`${this.scheduleServiceBaseUrl}/schedules`, {
-          ...dto,
-          doctorId: doctor.id,
-        }),
-      );
-
-      return response.data as DoctorSchedule;
-    } catch (error) {
-      this.handleAxiosError(error);
+    // Validation
+    if (dto.from.getTime() >= dto.to.getTime()) {
+      throw new BadRequestException('"from" must be before "to"');
     }
+
+    if (dto.noOfSlots <= 0) {
+      throw new BadRequestException('Number of slots must be greater than 0');
+    }
+
+    // Check for overlapping schedules
+    const existingSchedule = await this.prisma.doctorSchedule.findFirst({
+      where: {
+        doctorId: doctor.id,
+        from: { lte: dto.to },
+        to: { gte: dto.from },
+        deletedAt: null,
+      },
+    });
+
+    if (existingSchedule) {
+      throw new BadRequestException(
+        'Doctor already has a schedule in this time range',
+      );
+    }
+
+    // Calculate slot length
+    const totalMinutes = (dto.to.getTime() - dto.from.getTime()) / (1000 * 60);
+    const slotLength = totalMinutes / dto.noOfSlots;
+
+    if (slotLength < 1) {
+      throw new BadRequestException('Slot duration too short');
+    }
+
+    // Create schedule and slots in a transaction
+    const schedule = await this.prisma.$transaction(async (prisma) => {
+      const newSchedule = await prisma.doctorSchedule.create({
+        data: {
+          doctorId: doctor.id,
+          from: dto.from,
+          to: dto.to,
+          noOfSlots: dto.noOfSlots,
+        },
+      });
+
+      const slots = Array.from({ length: dto.noOfSlots }, (_, i) => {
+        const start = new Date(dto.from.getTime() + i * slotLength * 60000);
+        const end = new Date(start.getTime() + slotLength * 60000);
+        return {
+          startTime: start,
+          endTime: end,
+          scheduleId: newSchedule.id,
+        };
+      });
+
+      await prisma.appointmentSlot.createMany({ data: slots });
+
+      return newSchedule;
+    });
+
+    return schedule;
   }
 
-  // Get my doctor schedules
   async getMyDoctorSchedules(userId: number) {
     // Check doctor existence
     const doctor = await this.prisma.doctor.findUnique({ where: { userId } });
@@ -46,37 +86,39 @@ export class DoctorScheduleService {
       throw new BadRequestException('User is not a doctor or does not exist');
     }
 
-    // Send request to schedule microservice
-    try {
-      const response = await firstValueFrom(
-        this.httpService.get(
-          `${this.scheduleServiceBaseUrl}/schedules/?doctorId=${doctor.id}`,
-        ),
-      );
-
-      return response.data as DoctorSchedule[];
-    } catch (error) {
-      this.handleAxiosError(error);
-    }
+    return this.prisma.doctorSchedule.findMany({
+      where: {
+        doctorId: doctor.id,
+        deletedAt: null,
+      },
+      include: {
+        appointmentSlots: {
+          where: { deletedAt: null },
+          orderBy: { startTime: 'asc' },
+        },
+      },
+      orderBy: { from: 'asc' },
+    });
   }
 
-  // Get doctor schedule by ID
   async getDoctorScheduleById(scheduleId: number) {
-    // Send request to schedule microservice
-    try {
-      const response = await firstValueFrom(
-        this.httpService.get(
-          `${this.scheduleServiceBaseUrl}/schedules/${scheduleId}`,
-        ),
-      );
+    const schedule = await this.prisma.doctorSchedule.findUnique({
+      where: { id: scheduleId },
+      include: {
+        appointmentSlots: {
+          where: { deletedAt: null },
+          orderBy: { startTime: 'asc' },
+        },
+      },
+    });
 
-      return response.data as DoctorSchedule;
-    } catch (error) {
-      this.handleAxiosError(error);
+    if (!schedule || schedule.deletedAt) {
+      throw new NotFoundException('Schedule not found');
     }
+
+    return schedule;
   }
 
-  // Delete doctor schedule by ID
   async deleteDoctorScheduleById(scheduleId: number, userId: number) {
     // Check doctor existence
     const doctor = await this.prisma.doctor.findUnique({ where: { userId } });
@@ -84,34 +126,46 @@ export class DoctorScheduleService {
       throw new BadRequestException('User is not a doctor or does not exist');
     }
 
-    // Send request to schedule microservice
-    try {
-      const response = await firstValueFrom(
-        this.httpService.delete(
-          `${this.scheduleServiceBaseUrl}/schedules/${scheduleId}/delete`,
-          {
-            data: { doctorId: doctor.id }, // body goes here
-          },
-        ),
+    // Check if the schedule exists
+    const schedule = await this.prisma.doctorSchedule.findUnique({
+      where: { id: scheduleId },
+    });
+
+    if (!schedule || schedule.deletedAt) {
+      throw new NotFoundException('Schedule not found');
+    }
+
+    // Check if the schedule belongs to the doctor
+    if (schedule.doctorId !== doctor.id) {
+      throw new BadRequestException(
+        'You do not have permission to delete this schedule',
       );
-
-      return response.data as { success: boolean; message: string };
-    } catch (error) {
-      this.handleAxiosError(error);
     }
-  }
 
-  // Handle Axios errors
-  private handleAxiosError(error: unknown): never {
-    const axiosError = error as AxiosError;
+    // Check if there are any appointments linked to this schedule
+    const appointments = await this.prisma.appointment.findMany({
+      where: { slot: { scheduleId } },
+    });
 
-    if (axiosError.response?.data) {
-      const errorMessage =
-        (axiosError.response.data as { message?: string })?.message ||
-        'Checkup Service Error';
-      throw new BadRequestException(errorMessage);
-    } else {
-      throw new BadRequestException('Unable to connect to checkup service');
+    if (appointments.length > 0) {
+      throw new BadRequestException(
+        'Cannot delete schedule with existing appointments',
+      );
     }
+
+    // Soft delete the schedule and its slots
+    await this.prisma.$transaction(async (prisma) => {
+      await prisma.doctorSchedule.update({
+        where: { id: scheduleId },
+        data: { deletedAt: new Date() },
+      });
+
+      await prisma.appointmentSlot.updateMany({
+        where: { scheduleId },
+        data: { deletedAt: new Date() },
+      });
+    });
+
+    return { success: true, message: 'Schedule deleted successfully' };
   }
 }

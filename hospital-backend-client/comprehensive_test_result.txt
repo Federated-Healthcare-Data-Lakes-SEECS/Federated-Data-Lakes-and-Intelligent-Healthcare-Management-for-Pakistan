@@ -1,0 +1,907 @@
+PS E:\FYP - Source Code\hospital-backend> cd "e:\FYP - Source Code\hospital-backend-client"; python comprehensive_test.py
+
+================================================================================       
+COMPREHENSIVE HOSPITAL BACKEND API TESTING
+================================================================================       
+
+
+Starting comprehensive API tests...
+
+Note: Some tests may fail if data doesn't exist or permissions are wrong
+
+
+================================================================================       
+                              AUTHENTICATION APIS                                      
+================================================================================       
+
+
+Testing Registration:
+✓ Register test.user@hospital.com - Status: 201
+{
+  "success": true,
+  "message": "Registration successful"
+}
+
+Testing Login:
+✓ Login as admin@hospital.com - Status: 200
+
+================================================================================       
+                                   USER APIS                                           
+================================================================================       
+
+
+Testing Get Profile:
+✓ Get user profile - Status: 200
+{
+  "id": 1,
+  "email": "admin@hospital.com",
+  "firstName": "Hospital",
+  "lastName": "Administrator",
+  "gender": "MALE",
+  "cnic": "12345-6789012-3",
+  "createdAt": "2025-11-23T07:20:45.132Z",
+  "isActive": true,
+  "roles": [
+    "ADMIN"
+  ]
+}
+
+Testing Update Patient Profile:
+✗ Update patient profile - Status: 403
+Error: {"message":"Only patients can update their profile","error":"Forbidden","statusCode":403}
+
+================================================================================       
+                                DEPARTMENT APIS                                        
+================================================================================       
+
+
+Testing Get All Departments:
+✓ Get all departments - Status: 200
+[
+  {
+    "id": 1,
+    "name": "Cardiology Department",
+    "description": "Heart and cardiovascular system department",
+    "createdAt": "2025-11-23T07:20:45.176Z",
+    "updatedAt": "2025-11-23T07:20:45.176Z",
+    "code": "CARD"
+  }
+]
+
+Testing Get Standard Departments:
+✓ Get standard departments - Status: 200
+[
+  {
+    "id": 1,
+    "name": "Cardiology",
+    "code": "CARD"
+  },
+  {
+    "id": 2,
+    "name": "Neurology",
+    "code": "NEUR"
+  },
+  {
+    "id": 3,
+    "name": "Orthopedics",
+    "code": "ORTH"
+  },
+  {
+    "id": 4,
+    "name": "Pediatrics",
+    "code": "PEDI"
+  },
+  {
+    "id": 5,
+    "name": "Gynecology",
+    "code": "GYNE"
+  },
+  {
+    "id": 6,
+    "name": "Radiology",
+    "code": "RADI"
+  },
+  {
+    "id": 7,
+    "name": "General Medicine",
+    "code": "GENM"
+  }
+]
+
+Testing Register Department:
+✗ Register department Test Department - Status: 400
+Error: {"message":"Invalid department code","error":"Bad Request","statusCode":400}    
+
+================================================================================       
+                              DOCTOR APIS (ADMIN)                                      
+================================================================================       
+
+
+Testing Register Doctor:
+✓ Register doctor ahmed.ali@hospital.com - Status: 201
+{
+  "id": 2,
+  "firstName": "Ahmed",
+  "lastName": "Ali",
+  "email": "ahmed.ali@hospital.com",
+  "gender": "MALE",
+  "cnic": "12345-1234567-9",
+  "licenseNumber": "DOC12345",
+  "specialization": "Cardiology",
+  "experience": 5,
+  "qualification": "MBBS, MD Cardiology",
+  "departmentName": "Cardiology Department",
+  "createdAt": "2025-11-23T07:20:53.559Z"
+}
+
+Testing Get All Doctors:
+✓ Get all doctors - Status: 200
+[
+  {
+    "id": 2,
+    "firstName": "Ahmed",
+    "lastName": "Ali",
+    "email": "ahmed.ali@hospital.com",
+    "gender": "MALE",
+    "cnic": "12345-1234567-9",
+    "licenseNumber": "DOC12345",
+    "specialization": "Cardiology",
+    "experience": 5,
+    "qualification": "MBBS, MD Cardiology",
+    "departmentName": "Cardiology Department",
+    "createdAt": "2025-11-23T07:20:53.559Z"
+  },
+  {
+    "id": 1,
+    "firstName": "John",
+    "lastName": "Doe",
+    "email": "doctor@hospital.com",
+    "gender": "MALE",
+    "cnic": "12345-1234567-1",
+    "licenseNumber": "DOC-2024-001",
+    "specialization": "Cardiology",
+    "experience": 10,
+    "qualification": "MBBS, MD Cardiology",
+    "departmentName": "Cardiology Department",
+    "createdAt": "2025-11-23T07:20:45.362Z"
+  }
+]
+
+Testing Get Doctor By ID:
+✓ Get doctor 2 - Status: 200
+{
+  "id": 2,
+  "firstName": "Ahmed",
+  "lastName": "Ali",
+  "email": "ahmed.ali@hospital.com",
+  "gender": "MALE",
+  "cnic": "12345-1234567-9",
+  "licenseNumber": "DOC12345",
+  "specialization": "Cardiology",
+  "experience": 5,
+  "qualification": "MBBS, MD Cardiology",
+  "departmentName": "Cardiology Department",
+  "createdAt": "2025-11-23T07:20:53.559Z"
+}
+
+Testing Get Doctors By Department:
+✓ Get doctors in Cardiology Department - Status: 200
+[
+  {
+    "id": 2,
+    "firstName": "Ahmed",
+    "lastName": "Ali",
+    "email": "ahmed.ali@hospital.com",
+    "gender": "MALE",
+    "cnic": "12345-1234567-9",
+    "licenseNumber": "DOC12345",
+    "specialization": "Cardiology",
+    "experience": 5,
+    "qualification": "MBBS, MD Cardiology",
+    "departmentName": "Cardiology Department",
+    "createdAt": "2025-11-23T07:20:53.559Z"
+  },
+  {
+    "id": 1,
+    "firstName": "John",
+    "lastName": "Doe",
+    "email": "doctor@hospital.com",
+    "gender": "MALE",
+    "cnic": "12345-1234567-1",
+    "licenseNumber": "DOC-2024-001",
+    "specialization": "Cardiology",
+    "experience": 10,
+    "qualification": "MBBS, MD Cardiology",
+    "departmentName": "Cardiology Department",
+    "createdAt": "2025-11-23T07:20:45.362Z"
+  }
+]
+
+Testing Update Doctor:
+✓ Update doctor 2 - Status: 200
+{
+  "id": 2,
+  "firstName": "Ahmed",
+  "lastName": "Ali",
+  "email": "ahmed.ali@hospital.com",
+  "gender": "MALE",
+  "cnic": "12345-1234567-9",
+  "licenseNumber": "DOC12345",
+  "specialization": "Cardiology",
+  "experience": 6,
+  "qualification": "MBBS, MD Cardiology, Fellowship",
+  "departmentName": "Cardiology Department",
+  "createdAt": "2025-11-23T07:20:53.559Z"
+}
+
+Logging in as existing doctor for dashboard tests...
+✓ Login as ahmed.ali@hospital.com - Status: 200
+
+================================================================================       
+                             DOCTOR DASHBOARD APIS                                     
+================================================================================       
+
+
+Testing Get Doctor Profile:
+✓ Get doctor profile - Status: 200
+{
+  "id": 2,
+  "firstName": "Ahmed",
+  "lastName": "Ali",
+  "email": "ahmed.ali@hospital.com",
+  "gender": "MALE",
+  "cnic": "12345-1234567-9",
+  "licenseNumber": "DOC12345",
+  "specialization": "Cardiology",
+  "experience": 6,
+  "qualification": "MBBS, MD Cardiology, Fellowship",
+  "departmentName": "Cardiology Department",
+  "createdAt": "2025-11-23T07:20:53.559Z"
+}
+
+Testing Get Dashboard Stats:
+✓ Get dashboard stats - Status: 200
+{
+  "schedules": 0,
+  "bookedSlots": 0,
+  "availableSlots": 0,
+  "unbookableSlots": 0,
+  "checkups": 0,
+  "todayAppointments": 0
+}
+
+Testing Get Upcoming Appointments:
+✓ Get upcoming appointments - Status: 200
+[]
+
+Testing Get Recent Checkups:
+✓ Get recent checkups - Status: 200
+[]
+
+Testing Get Booked Appointments:
+✓ Get booked appointments - Status: 200
+[]
+
+================================================================================       
+                              DOCTOR SCHEDULE APIS                                     
+================================================================================       
+
+
+Testing Create Schedule:
+✓ Create doctor schedule - Status: 201
+{
+  "id": 1,
+  "doctorId": 2,
+  "from": "2025-11-24T09:00:00.000Z",
+  "to": "2025-11-24T17:00:00.000Z",
+  "noOfSlots": 8,
+  "createdAt": "2025-11-23T07:20:53.922Z",
+  "updatedAt": "2025-11-23T07:20:53.922Z",
+  "deletedAt": null
+}
+
+Testing Get All Schedules:
+✓ Get all doctor schedules - Status: 200
+[
+  {
+    "id": 1,
+    "doctorId": 2,
+    "from": "2025-11-24T09:00:00.000Z",
+    "to": "2025-11-24T17:00:00.000Z",
+    "noOfSlots": 8,
+    "createdAt": "2025-11-23T07:20:53.922Z",
+    "updatedAt": "2025-11-23T07:20:53.922Z",
+    "deletedAt": null,
+    "appointmentSlots": [
+      {
+        "id": 1,
+        "scheduleId": 1,
+        "startTime": "2025-11-24T09:00:00.000Z",
+        "endTime": "2025-11-24T10:00:00.000Z",
+        "isBookable": true,
+        "isBooked": false,
+        "createdAt": "2025-11-23T07:20:53.925Z",
+        "updatedAt": "2025-11-23T07:20:53.925Z",
+        "deletedAt": null
+      },
+      {
+        "id": 2,
+        "scheduleId": 1,
+        "startTime": "2025-11-24T10:00:00.000Z",
+        "endTime": "2025-11-24T11:00:00.000Z",
+        "isBookable": true,
+        "isBooked": false,
+        "createdAt": "2025-11-23T07:20:53.925Z",
+        "updatedAt": "2025-11-23T07:20:53.925Z",
+        "deletedAt": null
+      },
+      {
+        "id": 3,
+        "scheduleId": 1,
+        "startTime": "2025-11-24T11:00:00.000Z",
+        "endTime": "2025-11-24T12:00:00.000Z",
+        "isBookable": true,
+        "isBooked": false,
+        "createdAt": "2025-11-23T07:20:53.925Z",
+        "updatedAt": "2025-11-23T07:20:53.925Z",
+        "deletedAt": null
+      },
+      {
+        "id": 4,
+        "scheduleId": 1,
+        "startTime": "2025-11-24T12:00:00.000Z",
+        "endTime": "2025-11-24T13:00:00.000Z",
+        "isBookable": true,
+        "isBooked": false,
+        "createdAt": "2025-11-23T07:20:53.925Z",
+        "updatedAt": "2025-11-23T07:20:53.925Z",
+        "deletedAt": null
+      },
+      {
+        "id": 5,
+        "scheduleId": 1,
+        "startTime": "2025-11-24T13:00:00.000Z",
+        "endTime": "2025-11-24T14:00:00.000Z",
+        "isBookable": true,
+        "isBooked": false,
+        "createdAt": "2025-11-23T07:20:53.925Z",
+        "updatedAt": "2025-11-23T07:20:53.925Z",
+        "deletedAt": null
+      },
+      {
+        "id": 6,
+        "scheduleId": 1,
+        "startTime": "2025-11-24T14:00:00.000Z",
+        "endTime": "2025-11-24T15:00:00.000Z",
+        "isBookable": true,
+        "isBooked": false,
+        "createdAt": "2025-11-23T07:20:53.925Z",
+        "updatedAt": "2025-11-23T07:20:53.925Z",
+        "deletedAt": null
+      },
+      {
+        "id": 7,
+        "scheduleId": 1,
+        "startTime": "2025-11-24T15:00:00.000Z",
+        "endTime": "2025-11-24T16:00:00.000Z",
+        "isBookable": true,
+        "isBooked": false,
+        "createdAt": "2025-11-23T07:20:53.925Z",
+        "updatedAt": "2025-11-23T07:20:53.925Z",
+        "deletedAt": null
+      },
+      {
+        "id": 8,
+        "scheduleId": 1,
+        "startTime": "2025-11-24T16:00:00.000Z",
+        "endTime": "2025-11-24T17:00:00.000Z",
+        "isBookable": true,
+        "isBooked": false,
+        "createdAt": "2025-11-23T07:20:53.925Z",
+        "updatedAt": "2025-11-23T07:20:53.925Z",
+        "deletedAt": null
+      }
+    ]
+  }
+]
+
+Testing Get Schedule By ID:
+✓ Get schedule 1 - Status: 200
+{
+  "id": 1,
+  "doctorId": 2,
+  "from": "2025-11-24T09:00:00.000Z",
+  "to": "2025-11-24T17:00:00.000Z",
+  "noOfSlots": 8,
+  "createdAt": "2025-11-23T07:20:53.922Z",
+  "updatedAt": "2025-11-23T07:20:53.922Z",
+  "deletedAt": null,
+  "appointmentSlots": [
+    {
+      "id": 1,
+      "scheduleId": 1,
+      "startTime": "2025-11-24T09:00:00.000Z",
+      "endTime": "2025-11-24T10:00:00.000Z",
+      "isBookable": true,
+      "isBooked": false,
+      "createdAt": "2025-11-23T07:20:53.925Z",
+      "updatedAt": "2025-11-23T07:20:53.925Z",
+      "deletedAt": null
+    },
+    {
+      "id": 2,
+      "scheduleId": 1,
+      "startTime": "2025-11-24T10:00:00.000Z",
+      "endTime": "2025-11-24T11:00:00.000Z",
+      "isBookable": true,
+      "isBooked": false,
+      "createdAt": "2025-11-23T07:20:53.925Z",
+      "updatedAt": "2025-11-23T07:20:53.925Z",
+      "deletedAt": null
+    },
+    {
+      "id": 3,
+      "scheduleId": 1,
+      "startTime": "2025-11-24T11:00:00.000Z",
+      "endTime": "2025-11-24T12:00:00.000Z",
+      "isBookable": true,
+      "isBooked": false,
+      "createdAt": "2025-11-23T07:20:53.925Z",
+      "updatedAt": "2025-11-23T07:20:53.925Z",
+      "deletedAt": null
+    },
+    {
+      "id": 4,
+      "scheduleId": 1,
+      "startTime": "2025-11-24T12:00:00.000Z",
+      "endTime": "2025-11-24T13:00:00.000Z",
+      "isBookable": true,
+      "isBooked": false,
+      "createdAt": "2025-11-23T07:20:53.925Z",
+      "updatedAt": "2025-11-23T07:20:53.925Z",
+      "deletedAt": null
+    },
+    {
+      "id": 5,
+      "scheduleId": 1,
+      "startTime": "2025-11-24T13:00:00.000Z",
+      "endTime": "2025-11-24T14:00:00.000Z",
+      "isBookable": true,
+      "isBooked": false,
+      "createdAt": "2025-11-23T07:20:53.925Z",
+      "updatedAt": "2025-11-23T07:20:53.925Z",
+      "deletedAt": null
+    },
+    {
+      "id": 6,
+      "scheduleId": 1,
+      "startTime": "2025-11-24T14:00:00.000Z",
+      "endTime": "2025-11-24T15:00:00.000Z",
+      "isBookable": true,
+      "isBooked": false,
+      "createdAt": "2025-11-23T07:20:53.925Z",
+      "updatedAt": "2025-11-23T07:20:53.925Z",
+      "deletedAt": null
+    },
+    {
+      "id": 7,
+      "scheduleId": 1,
+      "startTime": "2025-11-24T15:00:00.000Z",
+      "endTime": "2025-11-24T16:00:00.000Z",
+      "isBookable": true,
+      "isBooked": false,
+      "createdAt": "2025-11-23T07:20:53.925Z",
+      "updatedAt": "2025-11-23T07:20:53.925Z",
+      "deletedAt": null
+    },
+    {
+      "id": 8,
+      "scheduleId": 1,
+      "startTime": "2025-11-24T16:00:00.000Z",
+      "endTime": "2025-11-24T17:00:00.000Z",
+      "isBookable": true,
+      "isBooked": false,
+      "createdAt": "2025-11-23T07:20:53.925Z",
+      "updatedAt": "2025-11-23T07:20:53.925Z",
+      "deletedAt": null
+    }
+  ]
+}
+
+Testing Overlapping Schedule (should fail):
+✗ Create doctor schedule - Status: 400
+Error: {"message":"Doctor already has a schedule in this time range","error":"Bad Request","statusCode":400}
+
+================================================================================       
+                                  CHECKUP APIS                                         
+================================================================================       
+
+
+Testing Create Checkup:
+Note: This may fail if no valid appointment exists
+✗ Create checkup - Status: 404
+Error: {"message":"Appointment not found","error":"Not Found","statusCode":404}        
+
+Testing Get Checkup History:
+✓ Get checkup history - Status: 200
+[]
+
+================================================================================       
+                               RECEPTIONIST APIS                                       
+================================================================================       
+
+
+Testing Register Receptionist:
+✓ Register receptionist sara.ahmed@hospital.com - Status: 201
+{
+  "id": 1,
+  "firstName": "Sara",
+  "lastName": "Ahmed",
+  "email": "sara.ahmed@hospital.com",
+  "gender": "FEMALE",
+  "cnic": "12345-1234568-1",
+  "phoneNumber": "+923001234567",
+  "createdAt": "2025-11-23T07:20:54.166Z"
+}
+
+Testing Get All Receptionists:
+✓ Get all receptionists - Status: 200
+[
+  {
+    "id": 1,
+    "firstName": "Sara",
+    "lastName": "Ahmed",
+    "email": "sara.ahmed@hospital.com",
+    "gender": "FEMALE",
+    "cnic": "12345-1234568-1",
+    "phoneNumber": "+923001234567",
+    "createdAt": "2025-11-23T07:20:54.166Z"
+  }
+]
+
+Testing Get Receptionist By ID:
+✓ Get receptionist 1 - Status: 200
+{
+  "id": 1,
+  "firstName": "Sara",
+  "lastName": "Ahmed",
+  "email": "sara.ahmed@hospital.com",
+  "gender": "FEMALE",
+  "cnic": "12345-1234568-1",
+  "phoneNumber": "+923001234567",
+  "createdAt": "2025-11-23T07:20:54.166Z"
+}
+
+Testing Update Receptionist:
+✓ Update receptionist 1 - Status: 200
+{
+  "id": 1,
+  "firstName": "Sara",
+  "lastName": "Ahmed",
+  "email": "sara.ahmed@hospital.com",
+  "gender": "FEMALE",
+  "cnic": "12345-1234568-1",
+  "phoneNumber": "+923001234567",
+  "createdAt": "2025-11-23T07:20:54.166Z"
+}
+
+================================================================================       
+                                  PATIENT APIS                                         
+================================================================================       
+
+
+Testing Register Patient:
+✓ Register patient fatima.hassan@example.com - Status: 201
+{
+  "id": 6,
+  "firstName": "Fatima",
+  "lastName": "Hassan",
+  "email": "fatima.hassan@example.com",
+  "gender": "FEMALE",
+  "cnic": "12345-1234569-2",
+  "createdAt": "2025-11-23T07:20:54.355Z",
+  "password": "$2b$10$GhlLpKhdqS1xcjGZYyKD5u7275UEGci45lgh2Eo2974J6Q38pgO3O",
+  "isActive": true,
+  "updatedAt": "2025-11-23T07:20:54.355Z"
+}
+
+Testing Get All Patients:
+✓ Get all patients - Status: 200
+[
+  {
+    "id": 6,
+    "firstName": "Fatima",
+    "lastName": "Hassan",
+    "email": "fatima.hassan@example.com",
+    "gender": "FEMALE",
+    "cnic": "12345-1234569-2",
+    "createdAt": "2025-11-23T07:20:54.355Z",
+    "password": "$2b$10$GhlLpKhdqS1xcjGZYyKD5u7275UEGci45lgh2Eo2974J6Q38pgO3O",        
+    "isActive": true,
+    "updatedAt": "2025-11-23T07:20:54.355Z"
+  },
+  {
+    "id": 3,
+    "firstName": "Test",
+    "lastName": "User",
+    "email": "test.user@hospital.com",
+    "gender": "MALE",
+    "cnic": "12345-1234567-8",
+    "createdAt": "2025-11-23T07:20:53.211Z",
+    "password": "$2b$10$YYHqJnOGis.tON6Z8dnJFORjF1TwBZcJ4VWIj0r4ENBxI2wQna3e2",        
+    "isActive": true,
+    "updatedAt": "2025-11-23T07:20:53.211Z"
+  }
+]
+
+================================================================================       
+                                   DRUG APIS                                           
+================================================================================       
+
+
+Testing Register Drug:
+✓ Register drug Paracetamol - Status: 201
+{
+  "id": 1,
+  "name": "Paracetamol",
+  "description": "Pain reliever and fever reducer",
+  "formulaName": "Acetaminophen",
+  "chemicalFormula": "C8H9NO2",
+  "dosageForm": "Tablet",
+  "supplier": "PharmaCorp",
+  "strength": "500mg",
+  "isActive": true,
+  "createdAt": "2025-11-23T07:20:54.408Z",
+  "updatedAt": "2025-11-23T07:20:54.408Z"
+}
+
+Testing Get All Drugs:
+✓ Get all drugs - Status: 200
+[
+  {
+    "id": 1,
+    "name": "Paracetamol",
+    "description": "Pain reliever and fever reducer",
+    "formulaName": "Acetaminophen",
+    "chemicalFormula": "C8H9NO2",
+    "dosageForm": "Tablet",
+    "supplier": "PharmaCorp",
+    "strength": "500mg",
+    "isActive": true,
+    "createdAt": "2025-11-23T07:20:54.408Z",
+    "updatedAt": "2025-11-23T07:20:54.408Z"
+  }
+]
+
+Testing Update Drug:
+✓ Update drug 1 - Status: 200
+{
+  "id": 1,
+  "name": "Paracetamol",
+  "description": "Pain reliever and fever reducer - Updated",
+  "formulaName": "Acetaminophen",
+  "chemicalFormula": "C8H9NO2",
+  "dosageForm": "Tablet",
+  "supplier": "PharmaCorp International",
+  "strength": "500mg",
+  "isActive": true,
+  "createdAt": "2025-11-23T07:20:54.408Z",
+  "updatedAt": "2025-11-23T07:20:54.445Z"
+}
+
+Testing Deactivate Drug:
+✓ Deactivate drug 1 - Status: 200
+{
+  "id": 1,
+  "name": "Paracetamol",
+  "description": "Pain reliever and fever reducer - Updated",
+  "formulaName": "Acetaminophen",
+  "chemicalFormula": "C8H9NO2",
+  "dosageForm": "Tablet",
+  "supplier": "PharmaCorp International",
+  "strength": "500mg",
+  "isActive": false,
+  "createdAt": "2025-11-23T07:20:54.408Z",
+  "updatedAt": "2025-11-23T07:20:54.469Z"
+}
+
+================================================================================       
+                             LAB TEST TEMPLATE APIS                                    
+================================================================================       
+
+
+Testing Register Lab Test Template:
+✓ Register lab test template Complete Blood Count Template - Status: 201
+{
+  "id": 1,
+  "name": "Complete Blood Count Template",
+  "description": "Standard CBC test form structure",
+  "version": "1.0",
+  "formStructure": "{\"fields\": [{\"name\": \"hemoglobin\", \"type\": \"number\", \"unit\": \"g/dL\", \"normalRange\": \"12-16\"}, {\"name\": \"wbc\", \"type\": \"number\", \"unit\": \"cells/mcL\", \"normalRange\": \"4000-11000\"}, {\"name\": \"rbc\", \"type\": \"number\", \"unit\": \"million cells/mcL\", \"normalRange\": \"4.5-5.5\"}, {\"name\": \"platelets\", \"type\": \"number\", \"unit\": \"cells/mcL\", \"normalRange\": \"150000-400000\"}]}",
+  "isActive": true,
+  "createdAt": "2025-11-23T07:20:54.502Z",
+  "updatedAt": "2025-11-23T07:20:54.502Z"
+}
+
+Testing Get All Lab Test Templates:
+✓ Get all lab test templates - Status: 200
+[
+  {
+    "id": 1,
+    "name": "Complete Blood Count Template",
+    "description": "Standard CBC test form structure",
+    "version": "1.0",
+    "formStructure": "{\"fields\": [{\"name\": \"hemoglobin\", \"type\": \"number\", \"unit\": \"g/dL\", \"normalRange\": \"12-16\"}, {\"name\": \"wbc\", \"type\": \"number\", \"unit\": \"cells/mcL\", \"normalRange\": \"4000-11000\"}, {\"name\": \"rbc\", \"type\": \"number\", \"unit\": \"million cells/mcL\", \"normalRange\": \"4.5-5.5\"}, {\"name\": \"platelets\", \"type\": \"number\", \"unit\": \"cells/mcL\", \"normalRange\": \"150000-400000\"}]}",
+    "isActive": true,
+    "createdAt": "2025-11-23T07:20:54.502Z",
+    "updatedAt": "2025-11-23T07:20:54.502Z"
+  }
+]
+
+Testing Get Lab Test Template By ID:
+✓ Get lab test template 1 - Status: 200
+{
+  "id": 1,
+  "name": "Complete Blood Count Template",
+  "description": "Standard CBC test form structure",
+  "version": "1.0",
+  "formStructure": "{\"fields\": [{\"name\": \"hemoglobin\", \"type\": \"number\", \"unit\": \"g/dL\", \"normalRange\": \"12-16\"}, {\"name\": \"wbc\", \"type\": \"number\", \"unit\": \"cells/mcL\", \"normalRange\": \"4000-11000\"}, {\"name\": \"rbc\", \"type\": \"number\", \"unit\": \"million cells/mcL\", \"normalRange\": \"4.5-5.5\"}, {\"name\": \"platelets\", \"type\": \"number\", \"unit\": \"cells/mcL\", \"normalRange\": \"150000-400000\"}]}",
+  "isActive": true,
+  "createdAt": "2025-11-23T07:20:54.502Z",
+  "updatedAt": "2025-11-23T07:20:54.502Z"
+}
+
+Testing Update Lab Test Template:
+✓ Update lab test template 1 - Status: 200
+{
+  "id": 1,
+  "name": "Complete Blood Count Template",
+  "description": "Updated CBC test form structure with additional fields",
+  "version": "1.1",
+  "formStructure": "{\"fields\": [{\"name\": \"hemoglobin\", \"type\": \"number\", \"unit\": \"g/dL\", \"normalRange\": \"12-16\"}, {\"name\": \"wbc\", \"type\": \"number\", \"unit\": \"cells/mcL\", \"normalRange\": \"4000-11000\"}, {\"name\": \"rbc\", \"type\": \"number\", \"unit\": \"million cells/mcL\", \"normalRange\": \"4.5-5.5\"}, {\"name\": \"platelets\", \"type\": \"number\", \"unit\": \"cells/mcL\", \"normalRange\": \"150000-400000\"}]}",
+  "isActive": true,
+  "createdAt": "2025-11-23T07:20:54.502Z",
+  "updatedAt": "2025-11-23T07:20:54.531Z"
+}
+
+Testing Toggle Lab Test Template:
+✓ Toggle lab test template 1 - Status: 200
+{
+  "id": 1,
+  "name": "Complete Blood Count Template",
+  "description": "Updated CBC test form structure with additional fields",
+  "version": "1.1",
+  "formStructure": "{\"fields\": [{\"name\": \"hemoglobin\", \"type\": \"number\", \"unit\": \"g/dL\", \"normalRange\": \"12-16\"}, {\"name\": \"wbc\", \"type\": \"number\", \"unit\": \"cells/mcL\", \"normalRange\": \"4000-11000\"}, {\"name\": \"rbc\", \"type\": \"number\", \"unit\": \"million cells/mcL\", \"normalRange\": \"4.5-5.5\"}, {\"name\": \"platelets\", \"type\": \"number\", \"unit\": \"cells/mcL\", \"normalRange\": \"150000-400000\"}]}",
+  "isActive": false,
+  "createdAt": "2025-11-23T07:20:54.502Z",
+  "updatedAt": "2025-11-23T07:20:54.545Z"
+}
+✓ Toggle lab test template 1 - Status: 200
+{
+  "id": 1,
+  "name": "Complete Blood Count Template",
+  "description": "Updated CBC test form structure with additional fields",
+  "version": "1.1",
+  "formStructure": "{\"fields\": [{\"name\": \"hemoglobin\", \"type\": \"number\", \"unit\": \"g/dL\", \"normalRange\": \"12-16\"}, {\"name\": \"wbc\", \"type\": \"number\", \"unit\": \"cells/mcL\", \"normalRange\": \"4000-11000\"}, {\"name\": \"rbc\", \"type\": \"number\", \"unit\": \"million cells/mcL\", \"normalRange\": \"4.5-5.5\"}, {\"name\": \"platelets\", \"type\": \"number\", \"unit\": \"cells/mcL\", \"normalRange\": \"150000-400000\"}]}",
+  "isActive": true,
+  "createdAt": "2025-11-23T07:20:54.502Z",
+  "updatedAt": "2025-11-23T07:20:54.558Z"
+}
+
+================================================================================       
+                                 LAB TEST APIS                                         
+================================================================================       
+
+
+Testing Register Lab Test:
+✓ Register lab test Complete Blood Count - Status: 201
+{
+  "id": 1,
+  "name": "Complete Blood Count",
+  "description": "CBC test measures different components of blood",
+  "departmentName": "Cardiology Department",
+  "templateName": "Complete Blood Count Template",
+  "isActive": true,
+  "createdAt": "2025-11-23T07:20:54.586Z",
+  "updatedAt": "2025-11-23T07:20:54.586Z"
+}
+
+Testing Get All Lab Tests:
+✓ Get all lab tests - Status: 200
+[
+  {
+    "id": 1,
+    "name": "Complete Blood Count",
+    "description": "CBC test measures different components of blood",
+    "departmentName": "Cardiology Department",
+    "templateName": "Complete Blood Count Template",
+    "isActive": true,
+    "createdAt": "2025-11-23T07:20:54.586Z",
+    "updatedAt": "2025-11-23T07:20:54.586Z"
+  }
+]
+
+Testing Get Lab Test By ID:
+✓ Get lab test 1 - Status: 200
+{
+  "id": 1,
+  "name": "Complete Blood Count",
+  "description": "CBC test measures different components of blood",
+  "departmentName": "Cardiology Department",
+  "templateName": "Complete Blood Count Template",
+  "isActive": true,
+  "createdAt": "2025-11-23T07:20:54.586Z",
+  "updatedAt": "2025-11-23T07:20:54.586Z"
+}
+
+Testing Get Lab Tests By Department:
+✓ Get lab tests in Cardiology Department - Status: 200
+[
+  {
+    "id": 1,
+    "name": "Complete Blood Count",
+    "description": "CBC test measures different components of blood",
+    "departmentName": "Cardiology Department",
+    "templateName": "Complete Blood Count Template",
+    "isActive": true,
+    "createdAt": "2025-11-23T07:20:54.586Z",
+    "updatedAt": "2025-11-23T07:20:54.586Z"
+  }
+]
+
+Testing Update Lab Test:
+✓ Update lab test 1 - Status: 200
+{
+  "id": 1,
+  "name": "Complete Blood Count",
+  "description": "CBC test measures different components of blood - Updated",
+  "departmentName": "Cardiology Department",
+  "templateName": "Complete Blood Count Template",
+  "isActive": true,
+  "createdAt": "2025-11-23T07:20:54.586Z",
+  "updatedAt": "2025-11-23T07:20:54.678Z"
+}
+
+Testing Toggle Lab Test (Deactivate):
+✓ Toggle lab test 1 - Status: 200
+{
+  "id": 1,
+  "name": "Complete Blood Count",
+  "description": "CBC test measures different components of blood - Updated",
+  "departmentName": "Cardiology Department",
+  "templateName": "Complete Blood Count Template",
+  "isActive": false,
+  "createdAt": "2025-11-23T07:20:54.586Z",
+  "updatedAt": "2025-11-23T07:20:54.706Z"
+}
+
+Testing Toggle Lab Test (Reactivate):
+✓ Toggle lab test 1 - Status: 200
+{
+  "id": 1,
+  "name": "Complete Blood Count",
+  "description": "CBC test measures different components of blood - Updated",
+  "departmentName": "Cardiology Department",
+  "templateName": "Complete Blood Count Template",
+  "isActive": true,
+  "createdAt": "2025-11-23T07:20:54.586Z",
+  "updatedAt": "2025-11-23T07:20:54.733Z"
+}
+
+Cleanup is disabled by default. Uncomment to enable.
+
+================================================================================       
+                                  TEST SUMMARY                                         
+================================================================================       
+
+All tests completed!
+
+Created IDs for reference:
+  - doctor_id: 2
+  - schedule_id: 1
+  - receptionist_id: 1
+  - patient_id: 6
+  - drug_id: 1
+  - template_id: 1
+  - labtest_id: 1
+PS E:\FYP - Source Code\hospital-backend-client> 

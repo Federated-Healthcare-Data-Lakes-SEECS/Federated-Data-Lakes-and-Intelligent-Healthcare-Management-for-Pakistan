@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
+import { createSchedule } from "@/lib/api/doctor";
 import {
   Dialog,
   DialogContent,
@@ -17,11 +18,13 @@ import { Clock, Grid3x3 } from "lucide-react";
 interface CreateScheduleDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  onScheduleCreated?: () => void;
 }
 
 export default function CreateScheduleDialog({
   open,
   onOpenChange,
+  onScheduleCreated,
 }: CreateScheduleDialogProps) {
   const [formData, setFormData] = useState({
     date: "",
@@ -30,6 +33,7 @@ export default function CreateScheduleDialog({
     noOfSlots: "",
   });
   const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const minutesDiff = useMemo(() => {
     if (!formData.startTime || !formData.endTime) return 0;
@@ -78,14 +82,40 @@ export default function CreateScheduleDialog({
     parseInt(formData.noOfSlots) > 0 &&
     minutesDiff > 0;
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!isValid) return;
     setSubmitting(true);
-    setTimeout(() => {
-      setSubmitting(false);
+    setError(null);
+    
+    try {
+      // Combine date and time to create ISO timestamps
+      const fromDateTime = new Date(`${formData.date}T${formData.startTime}:00`).toISOString();
+      const toDateTime = new Date(`${formData.date}T${formData.endTime}:00`).toISOString();
+      
+      await createSchedule({
+        from: fromDateTime,
+        to: toDateTime,
+        noOfSlots: parseInt(formData.noOfSlots),
+      });
+      
+      // Reset form
+      setFormData({
+        date: "",
+        startTime: "",
+        endTime: "",
+        noOfSlots: "",
+      });
+      
+      alert("Schedule created successfully!");
+      onScheduleCreated?.();
       onOpenChange(false);
-    }, 600);
+    } catch (err: any) {
+      console.error("Error creating schedule:", err);
+      setError(err.response?.data?.message || "Failed to create schedule");
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -106,6 +136,12 @@ export default function CreateScheduleDialog({
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-5">
+          {error && (
+            <div className="text-sm text-destructive bg-destructive/10 p-3 rounded-md border border-destructive/20">
+              {error}
+            </div>
+          )}
+          
           <div className="grid gap-4">
             <div className="space-y-2">
               <Label

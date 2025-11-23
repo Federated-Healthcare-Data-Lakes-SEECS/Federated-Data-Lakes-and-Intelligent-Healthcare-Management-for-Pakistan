@@ -8,7 +8,15 @@ import { PrismaService } from '../prisma/prisma.service';
 import * as bcrypt from 'bcryptjs';
 import { plainToInstance } from 'class-transformer';
 
-import { RegisterDoctorDto, UpdateDoctorDto, DoctorResponseDto } from './dto';
+import {
+  RegisterDoctorDto,
+  UpdateDoctorDto,
+  DoctorResponseDto,
+  DoctorDashboardStatsDto,
+  UpcomingAppointmentDto,
+  RecentCheckupDto,
+  BookedAppointmentDto,
+} from './dto';
 
 @Injectable()
 export class DoctorService {
@@ -279,6 +287,299 @@ export class DoctorService {
       }
       throw error;
     }
+  }
+
+  // Doctor Dashboard Methods
+  async getDoctorProfile(userId: number): Promise<DoctorResponseDto> {
+    const doctor = await this.prisma.doctor.findUnique({
+      where: { userId },
+      include: { user: true, department: true },
+    });
+
+    if (!doctor) {
+      throw new NotFoundException('Doctor profile not found');
+    }
+
+    return this.transformToDoctorResponse(doctor as DoctorInterface);
+  }
+
+  async getDashboardStats(userId: number): Promise<DoctorDashboardStatsDto> {
+    const doctor = await this.prisma.doctor.findUnique({
+      where: { userId },
+    });
+
+    if (!doctor) {
+      throw new NotFoundException('Doctor not found');
+    }
+
+    // Get all schedules for this doctor (excluding soft-deleted)
+    const schedules = await this.prisma.doctorSchedule.count({
+      where: {
+        doctorId: doctor.id,
+        deletedAt: null,
+      },
+    });
+
+    // Get all slots for this doctor
+    const allSlots = await this.prisma.appointmentSlot.findMany({
+      where: {
+        schedule: {
+          doctorId: doctor.id,
+          deletedAt: null,
+        },
+        deletedAt: null,
+      },
+    });
+
+    const bookedSlots = allSlots.filter((slot) => slot.isBooked).length;
+    const unbookableSlots = allSlots.filter(
+      (slot) => !slot.isBookable && !slot.isBooked,
+    ).length;
+    const availableSlots =
+      allSlots.length - bookedSlots - unbookableSlots;
+
+    // Get checkups count
+    const checkups = await this.prisma.checkup.count({
+      where: {
+        appointment: {
+          slot: {
+            schedule: {
+              doctorId: doctor.id,
+            },
+          },
+        },
+      },
+    });
+
+    // Get today's appointments
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+
+    const todayAppointments = await this.prisma.appointment.count({
+      where: {
+        slot: {
+          schedule: {
+            doctorId: doctor.id,
+          },
+          startTime: {
+            gte: today,
+            lt: tomorrow,
+          },
+        },
+      },
+    });
+
+    return plainToInstance(
+      DoctorDashboardStatsDto,
+      {
+        schedules,
+        bookedSlots,
+        availableSlots,
+        unbookableSlots,
+        checkups,
+        todayAppointments,
+      },
+      { excludeExtraneousValues: true },
+    );
+  }
+
+  async getUpcomingAppointments(
+    userId: number,
+    limit: number = 5,
+  ): Promise<UpcomingAppointmentDto[]> {
+    const doctor = await this.prisma.doctor.findUnique({
+      where: { userId },
+    });
+
+    if (!doctor) {
+      throw new NotFoundException('Doctor not found');
+    }
+
+    const appointments = await this.prisma.appointment.findMany({
+      where: {
+        slot: {
+          schedule: {
+            doctorId: doctor.id,
+            deletedAt: null,
+          },
+          startTime: {
+            gte: new Date(),
+          },
+          deletedAt: null,
+        },
+      },
+      include: {
+        slot: true,
+        patient: {
+          include: {
+            user: true,
+          },
+        },
+      },
+      orderBy: {
+        slot: {
+          startTime: 'asc',
+        },
+      },
+      take: limit,
+    });
+
+    return appointments.map((apt) =>
+      plainToInstance(
+        UpcomingAppointmentDto,
+        {
+          id: apt.id,
+          startTime: apt.slot.startTime,
+          endTime: apt.slot.endTime,
+          reason: apt.reason || 'Appointment',
+          patientName: `${apt.patient.user.firstName} ${apt.patient.user.lastName || ''}`.trim(),
+          slotId: apt.slotId,
+        },
+        { excludeExtraneousValues: true },
+      ),
+    );
+  }
+
+  async getRecentCheckups(
+    userId: number,
+    limit: number = 5,
+  ): Promise<RecentCheckupDto[]> {
+    const doctor = await this.prisma.doctor.findUnique({
+      where: { userId },
+    });
+
+    if (!doctor) {
+      throw new NotFoundException('Doctor not found');
+    }
+
+    const checkups = await this.prisma.checkup.findMany({
+      where: {
+        appointment: {
+          slot: {
+            schedule: {
+              doctorId: doctor.id,
+            },
+          },
+        },
+      },
+      include: {
+        appointment: {
+          include: {
+            slot: true,
+            patient: {
+              include: {
+                user: true,
+              },
+            },
+          },
+        },
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+      take: limit,
+    });
+
+    return checkups.map((checkup) => {
+      const diagnosisPreview =
+        checkup.diagnosis.length > 80
+          ? checkup.diagnosis.slice(0, 80) + '…'
+          : checkup.diagnosis;
+
+      return plainToInstance(
+        RecentCheckupDto,
+        {
+          id: checkup.id,
+          createdAt: checkup.createdAt,
+          diagnosisPreview,
+          slotStart: checkup.appointment.slot.startTime,
+          bloodPressure: checkup.bloodPressure,
+          temperature: checkup.temperature,
+          heartRate: checkup.heartRate,
+          bloodSugar: checkup.bloodSugar,
+          patientName: `${checkup.appointment.patient.user.firstName} ${checkup.appointment.patient.user.lastName || ''}`.trim(),
+        },
+        { excludeExtraneousValues: true },
+      );
+    });
+  }
+
+  async getBookedAppointments(userId: number): Promise<BookedAppointmentDto[]> {
+    const doctor = await this.prisma.doctor.findUnique({
+      where: { userId },
+    });
+
+    if (!doctor) {
+      throw new NotFoundException('Doctor not found');
+    }
+
+    const appointments = await this.prisma.appointment.findMany({
+      where: {
+        slot: {
+          schedule: {
+            doctorId: doctor.id,
+            deletedAt: null,
+          },
+          isBooked: true,
+          deletedAt: null,
+        },
+      },
+      include: {
+        slot: {
+          include: {
+            schedule: true,
+          },
+        },
+        patient: {
+          include: {
+            user: true,
+          },
+        },
+        onlineAppointment: true,
+        walkinAppointment: true,
+      },
+      orderBy: {
+        slot: {
+          startTime: 'asc',
+        },
+      },
+    });
+
+    return appointments.map((apt) => {
+      let status = 'scheduled';
+      if (apt.onlineAppointment) {
+        status = apt.onlineAppointment.status.toLowerCase();
+      } else if (apt.walkinAppointment) {
+        status = apt.walkinAppointment.status.toLowerCase();
+      }
+
+      return plainToInstance(
+        BookedAppointmentDto,
+        {
+          id: apt.id,
+          patientId: apt.patientId,
+          slotId: apt.slotId,
+          scheduleId: apt.slot.scheduleId,
+          startTime: apt.slot.startTime,
+          endTime: apt.slot.endTime,
+          reason: apt.reason || 'Appointment',
+          status,
+          patient: {
+            id: apt.patient.id,
+            firstName: apt.patient.user.firstName,
+            lastName: apt.patient.user.lastName || '',
+            dateOfBirth: apt.patient.dateOfBirth,
+            bloodGroup: apt.patient.bloodGroup,
+            medicalHistory: apt.patient.medicalHistory,
+            allergies: apt.patient.allergies,
+          },
+          createdAt: apt.createdAt,
+        },
+        { excludeExtraneousValues: true },
+      );
+    });
   }
 
   // Private helper methods

@@ -14,6 +14,9 @@ import { DrugModule } from './drug/drug.module';
 import { LabTestModule } from './labtest/labtest.module';
 import { HttpModule } from '@nestjs/axios';
 import { LabTestTemplateModule } from './labtesttemplate/labtesttemplate.module';
+import { CheckupModule } from './checkup/checkup.module';
+import { OnlineAppointmentModule } from './onlineappointment/onlineappointment.module';
+import { AppointmentSlotModule } from './appointmentslot/appointmentslot.module';
 
 @Module({
   imports: [
@@ -32,6 +35,9 @@ import { LabTestTemplateModule } from './labtesttemplate/labtesttemplate.module'
     DrugModule,
     LabTestModule,
     LabTestTemplateModule,
+    CheckupModule,
+    OnlineAppointmentModule,
+    AppointmentSlotModule,
   ],
   controllers: [AppController],
   providers: [AppService],

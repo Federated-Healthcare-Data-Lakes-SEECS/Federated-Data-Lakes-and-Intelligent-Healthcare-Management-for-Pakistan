@@ -87,3 +87,98 @@ export class ReceptionistResponseDto {
     @Expose()
     createdAt: Date;
 }
+
+// ============================================================================
+// PATIENT MANAGEMENT DTOs
+// ============================================================================
+
+export class RegisterPatientDto {
+    @IsNotEmpty()
+    @IsString()
+    firstName: string;
+
+    @IsOptional()
+    @IsString()
+    lastName?: string;
+
+    @IsNotEmpty()
+    @IsEmail()
+    email: string;
+
+    @IsNotEmpty()
+    @IsString()
+    @MinLength(6)
+    password: string;
+
+    @IsNotEmpty()
+    @IsEnum(Gender)
+    gender: Gender;
+
+    @IsOptional()
+    @IsString()
+    cnic?: string;
+
+    @IsOptional()
+    @IsString()
+    dateOfBirth?: string;
+
+    @IsOptional()
+    @IsString()
+    bloodGroup?: string;
+
+    @IsOptional()
+    @IsString()
+    phoneNumber?: string;
+
+    @IsOptional()
+    @IsString()
+    address?: string;
+
+    @IsOptional()
+    @IsString()
+    emergencyContact?: string;
+
+    @IsOptional()
+    @IsString()
+    allergies?: string;
+
+    @IsOptional()
+    @IsString()
+    medicalHistory?: string;
+
+    @IsOptional()
+    @IsString()
+    familyHistory?: string;
+}
+
+// ============================================================================
+// APPOINTMENT MANAGEMENT DTOs
+// ============================================================================
+
+export class BookWalkinAppointmentDto {
+    @IsNotEmpty()
+    @IsInt()
+    patientId: number;
+
+    @IsNotEmpty()
+    @IsInt()
+    slotId: number;
+
+    @IsOptional()
+    @IsString()
+    reason?: string;
+}
+
+export class GetReceptionistAppointmentsQueryDto {
+    @IsOptional()
+    @IsString()
+    status?: 'BOOKED' | 'COMPLETED' | 'NOT_ATTENDED' | 'all';
+
+    @IsOptional()
+    @IsString()
+    timeFilter?: 'upcoming' | 'past' | 'all';
+
+    @IsOptional()
+    @IsString()
+    patientSearch?: string; // Search by patient name or email
+}
