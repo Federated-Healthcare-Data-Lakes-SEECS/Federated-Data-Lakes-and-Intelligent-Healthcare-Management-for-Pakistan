@@ -66,6 +66,9 @@ export class BookedAppointmentDto {
   status: string;
 
   @Expose()
+  appointmentType: string;
+
+  @Expose()
   @Type(() => PatientInfoDto)
   patient: PatientInfoDto;
 

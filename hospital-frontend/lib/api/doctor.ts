@@ -42,6 +42,7 @@ export interface UpcomingAppointment {
   endTime: string;
   reason: string;
   status: string;
+  appointmentType?: string;
   patient: {
     id: number;
     firstName: string;
@@ -69,7 +70,7 @@ export interface RecentCheckup {
   notes?: string;
   medications?: Medication[];
   additionalMedications?: string;
-  recommendedLabTests?: LabTest[];
+  recommendedLabTests?: { id: number; name: string }[];
   additionalTests?: string;
   createdAt: string;
   appointment: {
@@ -278,6 +279,14 @@ export async function getScheduleById(scheduleId: number): Promise<Schedule> {
  */
 export async function deleteSchedule(scheduleId: number): Promise<void> {
   await api.delete(`/doctorschedules/${scheduleId}`);
+}
+
+/**
+ * Toggle slot bookability (enable/disable slot for booking)
+ */
+export async function toggleSlotBookability(slotId: number): Promise<any> {
+  const response = await api.patch(`/doctorschedules/slots/${slotId}/toggle-bookability`);
+  return response.data;
 }
 
 // ============================================================================

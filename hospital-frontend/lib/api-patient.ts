@@ -110,6 +110,7 @@ export interface Checkup {
   bloodSugar: string | null;
   notes: string | null;
   additionalTests: string | null;
+  additionalMedications: string | null;
   createdAt: string;
   doctor: DoctorInfo;
   medications: Medication[];

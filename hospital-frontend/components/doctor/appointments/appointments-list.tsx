@@ -3,7 +3,7 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { User, Clock, FileText, X, AlertCircle } from "lucide-react";
+import { User, Clock, FileText, X, AlertCircle, Globe, Building2, Droplet, AlertTriangle } from "lucide-react";
 
 import type { UpcomingAppointment } from "@/lib/api/doctor";
 
@@ -54,6 +54,8 @@ export default function AppointmentsList({
           ? Math.floor((Date.now() - new Date(apt.patient.dateOfBirth).getTime()) / (365.25 * 24 * 60 * 60 * 1000))
           : null;
 
+        const appointmentType = apt.appointmentType || 'unknown';
+        
         return (
           <Card
             key={apt.id}
@@ -64,10 +66,10 @@ export default function AppointmentsList({
             <CardContent className="pt-6">
               <div className="flex flex-col gap-4">
                 <div className="flex items-start gap-4">
-                  <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
+                  <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
                     <User className="w-6 h-6 text-primary" />
                   </div>
-                  <div className="flex-1 space-y-1">
+                  <div className="flex-1 space-y-2">
                     <div className="flex flex-wrap items-center gap-2">
                       <p className="font-semibold text-foreground text-lg">
                         {apt.patient.firstName} {apt.patient.lastName}
@@ -79,35 +81,62 @@ export default function AppointmentsList({
                       >
                         {apt.status}
                       </Badge>
+                      <Badge 
+                        className="text-xs gap-1"
+                        variant="outline"
+                      >
+                        {appointmentType === 'online' ? (
+                          <>
+                            <Globe className="w-3 h-3" /> Online
+                          </>
+                        ) : (
+                          <>
+                            <Building2 className="w-3 h-3" /> Walk-in
+                          </>
+                        )}
+                      </Badge>
                     </div>
                     <div className="flex flex-wrap gap-3 text-sm text-muted-foreground">
                       <span className="flex items-center gap-1">
                         <Clock className="w-4 h-4" /> {timeRange}
                       </span>
+                      <span>•</span>
                       <span>{date}</span>
-                      <Badge variant="outline" className="bg-accent/5">{apt.reason}</Badge>
-                      {apt.patient.bloodGroup && <Badge variant="secondary">{apt.patient.bloodGroup}</Badge>}
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      <Badge variant="outline" className="text-xs">{apt.reason}</Badge>
+                      {apt.patient.bloodGroup && (
+                        <Badge variant="outline" className="text-xs gap-1">
+                          <Droplet className="w-3 h-3" /> {apt.patient.bloodGroup}
+                        </Badge>
+                      )}
+                      {apt.patient.allergies && (
+                        <Badge variant="outline" className="text-xs gap-1 text-orange-700 border-orange-300">
+                          <AlertTriangle className="w-3 h-3" /> Allergies
+                        </Badge>
+                      )}
                     </div>
                   </div>
                 </div>
 
-                <div className="flex flex-wrap gap-2 justify-end">
+                <div className="flex flex-wrap gap-2 justify-end pt-2 border-t">
                   <Button
                     size="sm"
                     variant="outline"
                     disabled={isCancelled}
                     onClick={() => onSelectAppointment(apt)}
+                    className="font-medium"
                   >
-                    <FileText className="w-4 h-4" /> {isCancelled ? 'View' : 'Perform Checkup'}
+                    <FileText className="w-4 h-4 mr-1" /> {isCancelled ? 'View Details' : 'Perform Checkup'}
                   </Button>
                   {!isCancelled && (
                     <Button
                       size="sm"
-                      variant="destructive"
+                      variant="ghost"
                       onClick={() => onCancelAppointment(apt.id)}
-                      className="bg-destructive hover:bg-destructive/90"
+                      className="text-destructive hover:text-destructive hover:bg-destructive/10"
                     >
-                      <X className="w-4 h-4" /> Cancel Appointment
+                      <X className="w-4 h-4 mr-1" /> Cancel
                     </Button>
                   )}
                 </div>

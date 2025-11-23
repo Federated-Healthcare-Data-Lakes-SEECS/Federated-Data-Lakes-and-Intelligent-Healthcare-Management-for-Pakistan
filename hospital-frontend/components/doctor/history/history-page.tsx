@@ -15,7 +15,8 @@ import {
   FlaskConical, 
   ChevronRight,
   ArrowLeft,
-  FileText
+  FileText,
+  Lightbulb // added
 } from 'lucide-react';
 
 export default function HistoryPage() {
@@ -293,23 +294,20 @@ function CheckupDetails({ checkup, onBack }: { checkup: RecentCheckup; onBack: (
                     </div>
                   </div>
                   {med.instructions && (
-                    <p className="text-xs text-muted-foreground italic">
-                      💡 {med.instructions}
+                    <p className="text-xs text-muted-foreground italic flex items-center gap-1">
+                      <Lightbulb className="w-3 h-3" /> {med.instructions}
                     </p>
                   )}
                 </div>
               ))
             )}
-            {checkup.additionalMedications && (
-              <div className="p-3 bg-secondary/20 rounded-lg border border-dashed">
-                <p className="text-xs font-medium text-foreground mb-1">
-                  Additional Medications
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  {checkup.additionalMedications}
-                </p>
-              </div>
-            )}
+            {/* Always show Additional Medications section with placeholder */}
+            <div className="p-3 rounded-lg border bg-muted/40">
+              <p className="text-xs font-medium text-foreground mb-1">Additional Medications</p>
+              <p className="text-xs text-muted-foreground">
+                {checkup.additionalMedications?.trim() ? checkup.additionalMedications : 'No additional medications provided'}
+              </p>
+            </div>
           </div>
         </SectionCard>
 
@@ -327,16 +325,13 @@ function CheckupDetails({ checkup, onBack }: { checkup: RecentCheckup; onBack: (
                 ))}
               </div>
             )}
-            {checkup.additionalTests && (
-              <div className="p-3 bg-secondary/20 rounded-lg border border-dashed">
-                <p className="text-xs font-medium text-foreground mb-1">
-                  Additional Tests
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  {checkup.additionalTests}
-                </p>
-              </div>
-            )}
+            {/* Always show Additional Tests section with placeholder */}
+            <div className="p-3 rounded-lg border bg-muted/40">
+              <p className="text-xs font-medium text-foreground mb-1">Additional Tests</p>
+              <p className="text-xs text-muted-foreground">
+                {checkup.additionalTests?.trim() ? checkup.additionalTests : 'No additional tests noted'}
+              </p>
+            </div>
           </div>
         </SectionCard>
       </div>

@@ -85,6 +85,8 @@ export default function PatientHistoryPage() {
                               year: "numeric",
                               month: "long",
                               day: "numeric",
+                              hour: "2-digit",
+                              minute: "2-digit",
                             })}
                           </p>
                         </div>
@@ -154,12 +156,15 @@ export default function PatientHistoryPage() {
                     </div>
 
                     {/* Medications */}
-                    {checkup.medications && checkup.medications.length > 0 && (
-                      <div className="space-y-3">
-                        <h4 className="font-semibold flex items-center gap-2">
-                          <Pill className="h-4 w-4" />
-                          Prescribed Medications ({checkup.medications.length})
-                        </h4>
+                    <div className="space-y-3">
+                      <h4 className="font-semibold flex items-center gap-2">
+                        <Pill className="h-4 w-4" />
+                        Prescribed Medications
+                        {checkup.medications && checkup.medications.length > 0 && (
+                          <span className="text-muted-foreground">({checkup.medications.length})</span>
+                        )}
+                      </h4>
+                      {checkup.medications && checkup.medications.length > 0 ? (
                         <div className="space-y-2">
                           {checkup.medications.map((med, idx) => (
                             <div key={idx} className="p-3 border rounded bg-blue-50 dark:bg-blue-950/20">
@@ -180,16 +185,29 @@ export default function PatientHistoryPage() {
                             </div>
                           ))}
                         </div>
-                      </div>
-                    )}
+                      ) : (
+                        <p className="text-sm text-muted-foreground p-3 bg-muted rounded">
+                          No medications prescribed from inventory
+                        </p>
+                      )}
+                      {checkup.additionalMedications && (
+                        <div className="p-3 border rounded bg-amber-50 dark:bg-amber-950/20">
+                          <p className="text-sm font-medium mb-1">Additional Medications:</p>
+                          <p className="text-sm text-muted-foreground">{checkup.additionalMedications}</p>
+                        </div>
+                      )}
+                    </div>
 
                     {/* Lab Tests */}
-                    {checkup.recommendedLabTests && checkup.recommendedLabTests.length > 0 && (
-                      <div className="space-y-3">
-                        <h4 className="font-semibold flex items-center gap-2">
-                          <TestTube className="h-4 w-4" />
-                          Recommended Lab Tests ({checkup.recommendedLabTests.length})
-                        </h4>
+                    <div className="space-y-3">
+                      <h4 className="font-semibold flex items-center gap-2">
+                        <TestTube className="h-4 w-4" />
+                        Recommended Lab Tests
+                        {checkup.recommendedLabTests && checkup.recommendedLabTests.length > 0 && (
+                          <span className="text-muted-foreground">({checkup.recommendedLabTests.length})</span>
+                        )}
+                      </h4>
+                      {checkup.recommendedLabTests && checkup.recommendedLabTests.length > 0 ? (
                         <div className="space-y-2">
                           {checkup.recommendedLabTests.map((test, idx) => (
                             <div key={idx} className="p-3 border rounded bg-green-50 dark:bg-green-950/20">
@@ -200,8 +218,18 @@ export default function PatientHistoryPage() {
                             </div>
                           ))}
                         </div>
-                      </div>
-                    )}
+                      ) : (
+                        <p className="text-sm text-muted-foreground p-3 bg-muted rounded">
+                          No lab tests recommended from templates
+                        </p>
+                      )}
+                      {checkup.additionalTests && (
+                        <div className="p-3 border rounded bg-purple-50 dark:bg-purple-950/20">
+                          <p className="text-sm font-medium mb-1">Additional Tests Required:</p>
+                          <p className="text-sm text-muted-foreground">{checkup.additionalTests}</p>
+                        </div>
+                      )}
+                    </div>
 
                     {/* Additional Notes */}
                     {checkup.notes && (
@@ -210,14 +238,6 @@ export default function PatientHistoryPage() {
                         <p className="text-sm text-muted-foreground bg-muted p-3 rounded">
                           {checkup.notes}
                         </p>
-                      </div>
-                    )}
-
-                    {/* Additional Tests */}
-                    {checkup.additionalTests && (
-                      <div className="space-y-2">
-                        <h4 className="font-semibold">Additional Tests Required</h4>
-                        <p className="text-sm text-muted-foreground">{checkup.additionalTests}</p>
                       </div>
                     )}
 

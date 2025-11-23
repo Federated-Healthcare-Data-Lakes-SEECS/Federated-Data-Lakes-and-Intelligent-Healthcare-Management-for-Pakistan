@@ -3,6 +3,7 @@ import {
   Get,
   Post,
   Delete,
+  Patch,
   Param,
   Body,
   ParseIntPipe,
@@ -38,6 +39,14 @@ export class DoctorScheduleController {
   @Get(':id')
   getDoctorScheduleById(@Param('id', ParseIntPipe) scheduleId: number) {
     return this.doctorScheduleService.getDoctorScheduleById(scheduleId);
+  }
+
+  @Patch('slots/:slotId/toggle-bookability')
+  toggleSlotBookability(
+    @Param('slotId', ParseIntPipe) slotId: number,
+    @GetUser('id') userId: number,
+  ) {
+    return this.doctorScheduleService.toggleSlotBookability(slotId, userId);
   }
 
   @Delete(':id')

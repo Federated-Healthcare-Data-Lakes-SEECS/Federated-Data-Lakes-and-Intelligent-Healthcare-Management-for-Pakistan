@@ -242,7 +242,7 @@ export class PatientService {
 
         const now = new Date();
 
-        // Fetch both online and walk-in appointments
+        // Fetch both online and walk-in appointments (exclude COMPLETED)
         const appointments = await this.prisma.appointment.findMany({
             where: {
                 patientId: patient.id,
@@ -252,8 +252,18 @@ export class PatientService {
                     },
                 },
                 OR: [
-                    { onlineAppointment: { isNot: null } },
-                    { walkinAppointment: { isNot: null } },
+                    { 
+                        AND: [
+                            { onlineAppointment: { isNot: null } },
+                            { onlineAppointment: { status: { not: 'COMPLETED' } } }
+                        ]
+                    },
+                    { 
+                        AND: [
+                            { walkinAppointment: { isNot: null } },
+                            { walkinAppointment: { status: { not: 'COMPLETED' } } }
+                        ]
+                    },
                 ],
             },
             include: {
@@ -367,7 +377,8 @@ export class PatientService {
 
         return checkups.map((checkup) => ({
             id: checkup.id,
-            date: checkup.createdAt,
+            appointmentId: checkup.appointmentId,
+            createdAt: checkup.createdAt,
             bloodPressure: checkup.bloodPressure,
             temperature: checkup.temperature,
             heartRate: checkup.heartRate,
@@ -375,6 +386,7 @@ export class PatientService {
             symptoms: checkup.symptoms,
             diagnosis: checkup.diagnosis,
             notes: checkup.notes,
+            additionalTests: checkup.checkupTestRecommendation.additionalTests,
             doctor: {
                 firstName: checkup.appointment.slot.schedule.doctor.user.firstName,
                 lastName: checkup.appointment.slot.schedule.doctor.user.lastName,
@@ -382,12 +394,19 @@ export class PatientService {
                 departmentName: checkup.appointment.slot.schedule.doctor.department.name,
             },
             medications: checkup.prescription.medications.map((med) => ({
-                drugName: med.drug.name,
+                id: med.id,
+                drugId: med.drug.id,
                 dosePerIntake: med.dosePerIntake,
                 timesPerDay: med.timesPerDay,
                 totalDays: med.totalDays,
                 instructions: med.instructions,
+                drug: {
+                    id: med.drug.id,
+                    name: med.drug.name,
+                    description: med.drug.description,
+                },
             })),
+            additionalMedications: checkup.prescription.additionalMedications,
             recommendedLabTests: checkup.checkupTestRecommendation.recommendedLabTests.map((test) => ({
                 id: test.labTest.id,
                 name: test.labTest.name,

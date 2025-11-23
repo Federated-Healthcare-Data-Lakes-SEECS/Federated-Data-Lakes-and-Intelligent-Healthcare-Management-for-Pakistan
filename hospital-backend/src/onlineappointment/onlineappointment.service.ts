@@ -210,6 +210,7 @@ export class OnlineAppointmentService {
         patient: true,
         onlineAppointment: true,
         slot: true,
+        checkup: true,
       },
     });
 
@@ -231,6 +232,11 @@ export class OnlineAppointmentService {
 
     if (appointment.onlineAppointment.status === OnlineAppointmentStatus.COMPLETED) {
       throw new BadRequestException('Cannot cancel a completed appointment');
+    }
+
+    // Check if checkup has been done for this appointment
+    if (appointment.checkup) {
+      throw new BadRequestException('Cannot cancel appointment - checkup has already been completed');
     }
 
     // Check if appointment is in the future (allow cancellation up to 1 hour before)

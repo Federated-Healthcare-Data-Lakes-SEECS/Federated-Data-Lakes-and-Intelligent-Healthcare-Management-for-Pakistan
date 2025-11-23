@@ -3,9 +3,10 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Calendar, Clock, Grid3x3, Trash2 } from 'lucide-react';
-import { deleteSchedule } from "@/lib/api/doctor";
+import { Calendar, Clock, Grid3x3, Trash2, Ban, CheckCircle } from 'lucide-react';
+import { deleteSchedule, toggleSlotBookability } from "@/lib/api/doctor";
 import type { Schedule } from "@/lib/api/doctor";
+import { toast } from "sonner";
 
 interface ScheduleListProps { 
   schedules: Schedule[];
@@ -20,11 +21,29 @@ export default function ScheduleList({ schedules, onScheduleDeleted }: ScheduleL
 
     try {
       await deleteSchedule(scheduleId);
-      alert("Schedule deleted successfully!");
+      toast.success("Schedule deleted successfully!");
       onScheduleDeleted?.();
     } catch (error: any) {
       console.error("Error deleting schedule:", error);
-      alert(error.response?.data?.message || "Failed to delete schedule");
+      const errorMessage = error.response?.data?.message || "Failed to delete schedule";
+      
+      // Check if it's the booked slots error
+      if (error.response?.status === 400 || errorMessage.toLowerCase().includes('booked')) {
+        toast.error("This schedule cannot be deleted - some slots are already booked");
+      } else {
+        toast.error(errorMessage);
+      }
+    }
+  };
+
+  const handleToggleBookability = async (slotId: number) => {
+    try {
+      const result = await toggleSlotBookability(slotId);
+      toast.success(result.message || "Slot bookability updated");
+      onScheduleDeleted?.(); // Refresh the list
+    } catch (error: any) {
+      console.error("Error toggling slot:", error);
+      toast.error(error.response?.data?.message || "Failed to update slot");
     }
   };
 
@@ -53,35 +72,45 @@ export default function ScheduleList({ schedules, onScheduleDeleted }: ScheduleL
         const scheduleDate = new Date(schedule.from);
         const scheduleEndDate = new Date(schedule.to);
 
+        const hasBookedSlots = booked > 0;
+
         return (
-          <Card key={schedule.id} className="border-0 shadow-sm">
-            <CardHeader className="pb-2">
-              <div className="flex items-center justify-between">
+          <Card key={schedule.id} className="border-0 shadow-sm hover:shadow-md transition-shadow">
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between gap-4">
                 <div className="space-y-1">
-                  <CardTitle className="text-sm font-semibold tracking-wide flex items-center gap-2">
+                  <CardTitle className="text-base font-semibold flex items-center gap-2">
                     <Calendar className="w-4 h-4 text-primary" />
                     {scheduleDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })}
                   </CardTitle>
                   <p className="text-xs text-muted-foreground flex items-center gap-2">
-                    <Clock className="w-3 h-3" />
+                    <Clock className="w-3.5 h-3.5" />
                     {scheduleDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} - {scheduleEndDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                   </p>
                 </div>
-                <div className="flex gap-2 items-center flex-wrap">
-                  <Badge variant="outline" className="text-xs gap-1"><Grid3x3 className="w-3 h-3" /> {schedule.appointmentSlots.length} slots</Badge>
-                  <Badge variant="secondary" className="text-xs">{booked} booked</Badge>
-                  <Badge variant="outline" className="text-xs">{available} available</Badge>
-                  {unbookable > 0 && (
-                    <Badge variant="destructive" className="text-xs bg-destructive/10 text-destructive border-destructive/30">{unbookable} blocked</Badge>
+                <div className="flex gap-2 items-center flex-wrap justify-end">
+                  <Badge variant="outline" className="text-xs gap-1">
+                    <Grid3x3 className="w-3 h-3" /> {schedule.appointmentSlots.length} slots
+                  </Badge>
+                  {booked > 0 && (
+                    <Badge variant="outline" className="text-xs">{booked} booked</Badge>
                   )}
-                  <Button 
-                    size="sm" 
-                    variant="destructive" 
-                    onClick={() => handleDelete(schedule.id)}
-                    className="h-7"
-                  >
-                    <Trash2 className="w-3 h-3" />
-                  </Button>
+                  {available > 0 && (
+                    <Badge variant="secondary" className="text-xs">{available} available</Badge>
+                  )}
+                  {unbookable > 0 && (
+                    <Badge variant="outline" className="text-xs">{unbookable} blocked</Badge>
+                  )}
+                  {!hasBookedSlots && (
+                    <Button 
+                      size="sm" 
+                      variant="ghost" 
+                      onClick={() => handleDelete(schedule.id)}
+                      className="h-8 text-destructive hover:text-destructive hover:bg-destructive/10"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                  )}
                 </div>
               </div>
             </CardHeader>
@@ -93,14 +122,28 @@ export default function ScheduleList({ schedules, onScheduleDeleted }: ScheduleL
                   const slotEndTime = new Date(slot.endTime);
                   
                   return (
-                    <div key={slot.id} className={`p-3 rounded-md border text-xs flex flex-col gap-2 ${status === 'booked' ? 'bg-primary/10 border-primary/30' : status === 'unbookable' ? 'bg-muted/40 border-muted-foreground/20' : 'bg-secondary/20 border-secondary/30'}`}>
-                      <div className="flex justify-between items-center">
-                        <div>
-                          <span className="font-medium block">{slotStartTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                    <div key={slot.id} className={`p-3 rounded-lg border text-xs flex flex-col gap-2 transition-all ${status === 'booked' ? 'bg-muted/50' : status === 'unbookable' ? 'bg-muted/30' : 'bg-background'}`}>
+                      <div className="flex justify-between items-start gap-2">
+                        <div className="flex-1">
+                          <span className="font-semibold block text-foreground">{slotStartTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                           <span className="text-[10px] text-muted-foreground">{slotEndTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                         </div>
                         <StatusBadge status={status} />
                       </div>
+                      {!slot.isBooked && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-7 text-[11px] gap-1 font-medium"
+                          onClick={() => handleToggleBookability(slot.id)}
+                        >
+                          {slot.isBookable ? (
+                            <><Ban className="w-3 h-3" /> Block</>
+                          ) : (
+                            <><CheckCircle className="w-3 h-3" /> Enable</>
+                          )}
+                        </Button>
+                      )}
                     </div>
                   );
                 })}
@@ -116,20 +159,20 @@ export default function ScheduleList({ schedules, onScheduleDeleted }: ScheduleL
 function StatusBadge({ status }: { status: string }) {
   if (status === 'booked') {
     return (
-      <span className="inline-flex items-center px-2 py-0.5 rounded bg-primary text-primary-foreground font-medium">
+      <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] border bg-primary/10 text-primary font-semibold">
         Booked
       </span>
     );
   }
   if (status === 'unbookable') {
     return (
-      <span className="inline-flex items-center px-2 py-0.5 rounded bg-muted text-muted-foreground font-medium">
+      <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] border bg-muted text-muted-foreground font-semibold">
         Blocked
       </span>
     );
   }
   return (
-    <span className="inline-flex items-center px-2 py-0.5 rounded bg-secondary text-secondary-foreground font-medium">
+    <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] border bg-secondary text-secondary-foreground font-semibold">
       Available
     </span>
   );

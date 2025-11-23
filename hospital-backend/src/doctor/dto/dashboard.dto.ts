@@ -38,6 +38,23 @@ export class UpcomingAppointmentDto {
 
   @Expose()
   slotId: number;
+
+  @Expose()
+  appointmentType?: string;
+
+  @Expose()
+  status?: string;
+
+  @Expose()
+  patient?: {
+    id: number;
+    firstName: string;
+    lastName: string;
+    dateOfBirth?: Date;
+    bloodGroup?: string;
+    allergies?: string;
+    medicalHistory?: string;
+  };
 }
 
 export class RecentCheckupDto {

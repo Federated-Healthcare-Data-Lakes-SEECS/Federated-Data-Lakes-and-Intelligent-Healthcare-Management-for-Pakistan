@@ -119,6 +119,52 @@ export class DoctorScheduleService {
     return schedule;
   }
 
+  async toggleSlotBookability(slotId: number, userId: number) {
+    // Check doctor existence
+    const doctor = await this.prisma.doctor.findUnique({ where: { userId } });
+    if (!doctor) {
+      throw new BadRequestException('User is not a doctor or does not exist');
+    }
+
+    // Get the slot with schedule info
+    const slot = await this.prisma.appointmentSlot.findUnique({
+      where: { id: slotId },
+      include: {
+        schedule: true,
+      },
+    });
+
+    if (!slot || slot.deletedAt) {
+      throw new NotFoundException('Slot not found');
+    }
+
+    // Check if slot belongs to this doctor
+    if (slot.schedule.doctorId !== doctor.id) {
+      throw new BadRequestException(
+        'You do not have permission to modify this slot',
+      );
+    }
+
+    // Check if slot is already booked
+    if (slot.isBooked) {
+      throw new BadRequestException(
+        'Cannot modify bookability of a booked slot',
+      );
+    }
+
+    // Toggle the bookability
+    const updatedSlot = await this.prisma.appointmentSlot.update({
+      where: { id: slotId },
+      data: { isBookable: !slot.isBookable },
+    });
+
+    return {
+      success: true,
+      message: `Slot ${updatedSlot.isBookable ? 'enabled' : 'disabled'} for booking`,
+      slot: updatedSlot,
+    };
+  }
+
   async deleteDoctorScheduleById(scheduleId: number, userId: number) {
     // Check doctor existence
     const doctor = await this.prisma.doctor.findUnique({ where: { userId } });
@@ -142,14 +188,18 @@ export class DoctorScheduleService {
       );
     }
 
-    // Check if there are any appointments linked to this schedule
-    const appointments = await this.prisma.appointment.findMany({
-      where: { slot: { scheduleId } },
+    // Check if there are any booked slots in this schedule
+    const bookedSlots = await this.prisma.appointmentSlot.findMany({
+      where: { 
+        scheduleId,
+        isBooked: true,
+        deletedAt: null,
+      },
     });
 
-    if (appointments.length > 0) {
+    if (bookedSlots.length > 0) {
       throw new BadRequestException(
-        'Cannot delete schedule with existing appointments',
+        'Cannot delete schedule - some slots are already booked',
       );
     }
 

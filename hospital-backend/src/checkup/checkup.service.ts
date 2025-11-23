@@ -33,6 +33,8 @@ export class CheckupService {
             schedule: true,
           },
         },
+        onlineAppointment: true,
+        walkinAppointment: true,
       },
     });
 
@@ -43,6 +45,18 @@ export class CheckupService {
     if (appointment.slot.schedule.doctorId !== doctor.id) {
       throw new ForbiddenException(
         'You can only create checkups for your own appointments',
+      );
+    }
+
+    // Check if appointment is already completed
+    const isOnline = !!appointment.onlineAppointment;
+    const appointmentStatus = isOnline
+      ? appointment.onlineAppointment?.status
+      : appointment.walkinAppointment?.status;
+
+    if (appointmentStatus === 'COMPLETED') {
+      throw new BadRequestException(
+        'Cannot create checkup - appointment is already completed',
       );
     }
 
@@ -137,6 +151,28 @@ export class CheckupService {
           checkupTestRecommendationId: testRecommendation.id,
         },
       });
+
+      // Mark appointment as COMPLETED
+      // Check if it's an online or walk-in appointment and update accordingly
+      const appointmentWithType = await prisma.appointment.findUnique({
+        where: { id: dto.appointmentId },
+        include: {
+          onlineAppointment: true,
+          walkinAppointment: true,
+        },
+      });
+
+      if (appointmentWithType?.onlineAppointment) {
+        await prisma.onlineAppointment.update({
+          where: { appointmentId: dto.appointmentId },
+          data: { status: 'COMPLETED' },
+        });
+      } else if (appointmentWithType?.walkinAppointment) {
+        await prisma.walkinAppointment.update({
+          where: { appointmentId: dto.appointmentId },
+          data: { status: 'COMPLETED' },
+        });
+      }
 
       return newCheckup;
     });

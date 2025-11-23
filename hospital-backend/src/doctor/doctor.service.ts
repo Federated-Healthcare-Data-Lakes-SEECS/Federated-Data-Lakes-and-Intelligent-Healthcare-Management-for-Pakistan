@@ -14,7 +14,6 @@ import {
   DoctorResponseDto,
   DoctorDashboardStatsDto,
   UpcomingAppointmentDto,
-  RecentCheckupDto,
   BookedAppointmentDto,
 } from './dto';
 
@@ -409,6 +408,20 @@ export class DoctorService {
           },
           deletedAt: null,
         },
+        OR: [
+          {
+            AND: [
+              { onlineAppointment: { isNot: null } },
+              { onlineAppointment: { status: { not: 'COMPLETED' } } },
+            ],
+          },
+          {
+            AND: [
+              { walkinAppointment: { isNot: null } },
+              { walkinAppointment: { status: { not: 'COMPLETED' } } },
+            ],
+          },
+        ],
       },
       include: {
         slot: true,
@@ -417,6 +430,8 @@ export class DoctorService {
             user: true,
           },
         },
+        onlineAppointment: true,
+        walkinAppointment: true,
       },
       orderBy: {
         slot: {
@@ -426,8 +441,13 @@ export class DoctorService {
       take: limit,
     });
 
-    return appointments.map((apt) =>
-      plainToInstance(
+    return appointments.map((apt) => {
+      const isOnline = !!apt.onlineAppointment;
+      const status = isOnline 
+        ? apt.onlineAppointment?.status 
+        : apt.walkinAppointment?.status;
+      
+      return plainToInstance(
         UpcomingAppointmentDto,
         {
           id: apt.id,
@@ -436,16 +456,27 @@ export class DoctorService {
           reason: apt.reason || 'Appointment',
           patientName: `${apt.patient.user.firstName} ${apt.patient.user.lastName || ''}`.trim(),
           slotId: apt.slotId,
+          appointmentType: isOnline ? 'online' : 'walkin',
+          status: status?.toLowerCase(),
+          patient: {
+            id: apt.patient.id,
+            firstName: apt.patient.user.firstName,
+            lastName: apt.patient.user.lastName || '',
+            dateOfBirth: apt.patient.dateOfBirth,
+            bloodGroup: apt.patient.bloodGroup,
+            allergies: apt.patient.allergies,
+            medicalHistory: apt.patient.medicalHistory,
+          },
         },
         { excludeExtraneousValues: true },
-      ),
-    );
+      );
+    });
   }
 
   async getRecentCheckups(
     userId: number,
     limit: number = 5,
-  ): Promise<RecentCheckupDto[]> {
+  ): Promise<any[]> {
     const doctor = await this.prisma.doctor.findUnique({
       where: { userId },
     });
@@ -475,6 +506,24 @@ export class DoctorService {
             },
           },
         },
+        prescription: {
+          include: {
+            medications: {
+              include: {
+                drug: true,
+              },
+            },
+          },
+        },
+        checkupTestRecommendation: {
+          include: {
+            recommendedLabTests: {
+              include: {
+                labTest: true,
+              },
+            },
+          },
+        },
       },
       orderBy: {
         createdAt: 'desc',
@@ -482,28 +531,48 @@ export class DoctorService {
       take: limit,
     });
 
-    return checkups.map((checkup) => {
-      const diagnosisPreview =
-        checkup.diagnosis.length > 80
-          ? checkup.diagnosis.slice(0, 80) + '…'
-          : checkup.diagnosis;
-
-      return plainToInstance(
-        RecentCheckupDto,
-        {
-          id: checkup.id,
-          createdAt: checkup.createdAt,
-          diagnosisPreview,
-          slotStart: checkup.appointment.slot.startTime,
-          bloodPressure: checkup.bloodPressure,
-          temperature: checkup.temperature,
-          heartRate: checkup.heartRate,
-          bloodSugar: checkup.bloodSugar,
-          patientName: `${checkup.appointment.patient.user.firstName} ${checkup.appointment.patient.user.lastName || ''}`.trim(),
+    return checkups.map((checkup) => ({
+      id: checkup.id,
+      appointmentId: checkup.appointmentId,
+      diagnosis: checkup.diagnosis,
+      symptoms: checkup.symptoms,
+      bloodPressure: checkup.bloodPressure,
+      temperature: checkup.temperature,
+      heartRate: checkup.heartRate,
+      bloodSugar: checkup.bloodSugar,
+      notes: checkup.notes,
+      createdAt: checkup.createdAt,
+      medications: checkup.prescription?.medications.map((med) => ({
+        drugId: med.drugId,
+        dosePerIntake: med.dosePerIntake,
+        timesPerDay: med.timesPerDay,
+        totalDays: med.totalDays,
+        instructions: med.instructions,
+        drug: {
+          id: med.drug.id,
+          name: med.drug.name,
+          strength: med.drug.strength,
+          dosageForm: med.drug.dosageForm,
+          formulaName: med.drug.formulaName,
         },
-        { excludeExtraneousValues: true },
-      );
-    });
+      })) || [],
+      additionalMedications: checkup.prescription?.additionalMedications || null,
+      recommendedLabTests: checkup.checkupTestRecommendation?.recommendedLabTests.map((test) => ({
+        id: test.id,
+        name: test.labTest.name,
+      })) || [],
+      additionalTests: checkup.checkupTestRecommendation?.additionalTests || null,
+      appointment: {
+        slot: {
+          startTime: checkup.appointment.slot.startTime,
+          endTime: checkup.appointment.slot.endTime,
+        },
+        patient: {
+          firstName: checkup.appointment.patient.user.firstName,
+          lastName: checkup.appointment.patient.user.lastName || '',
+        },
+      },
+    }));
   }
 
   async getBookedAppointments(userId: number): Promise<BookedAppointmentDto[]> {
@@ -525,6 +594,32 @@ export class DoctorService {
           isBooked: true,
           deletedAt: null,
         },
+        OR: [
+          {
+            AND: [
+              { onlineAppointment: { isNot: null } },
+              { 
+                onlineAppointment: { 
+                  status: { 
+                    notIn: ['COMPLETED', 'CANCELLED'] 
+                  } 
+                } 
+              },
+            ],
+          },
+          {
+            AND: [
+              { walkinAppointment: { isNot: null } },
+              { 
+                walkinAppointment: { 
+                  status: { 
+                    notIn: ['COMPLETED', 'NOT_ATTENDED'] 
+                  } 
+                } 
+              },
+            ],
+          },
+        ],
       },
       include: {
         slot: {
@@ -547,12 +642,16 @@ export class DoctorService {
       },
     });
 
-    return appointments.map((apt) => {
+    return appointments.map((apt: any) => {
       let status = 'scheduled';
+      let appointmentType = 'unknown';
+      
       if (apt.onlineAppointment) {
         status = apt.onlineAppointment.status.toLowerCase();
+        appointmentType = 'online';
       } else if (apt.walkinAppointment) {
         status = apt.walkinAppointment.status.toLowerCase();
+        appointmentType = 'walkin';
       }
 
       return plainToInstance(
@@ -566,6 +665,7 @@ export class DoctorService {
           endTime: apt.slot.endTime,
           reason: apt.reason || 'Appointment',
           status,
+          appointmentType,
           patient: {
             id: apt.patient.id,
             firstName: apt.patient.user.firstName,
