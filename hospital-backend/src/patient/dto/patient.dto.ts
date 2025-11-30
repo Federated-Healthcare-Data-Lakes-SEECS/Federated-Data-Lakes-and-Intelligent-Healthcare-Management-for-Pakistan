@@ -40,5 +40,35 @@ export class PatientResponseDto {
   cnic: string;
 
   @Expose()
+  isActive: boolean;
+
+  @Expose()
+  dateOfBirth: Date | null;
+
+  @Expose()
+  bloodGroup: string | null;
+
+  @Expose()
+  medicalHistory: string | null;
+
+  @Expose()
+  familyHistory: string | null;
+
+  @Expose()
+  allergies: string | null;
+
+  @Expose()
+  address: string | null;
+
+  @Expose()
+  phoneNumber: string | null;
+
+  @Expose()
+  emergencyContact: string | null;
+
+  @Expose()
+  onboardingDone: boolean;
+
+  @Expose()
   createdAt: Date;
 }

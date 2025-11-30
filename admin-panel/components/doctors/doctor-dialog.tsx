@@ -24,9 +24,10 @@ interface DoctorDialogProps {
   onOpenChange: (open: boolean) => void
   doctor: Doctor | null
   onSave: (doctor: Doctor) => void
+  onError?: (error: unknown) => void
 }
 
-export function DoctorDialog({ open, onOpenChange, doctor, onSave }: DoctorDialogProps) {
+export function DoctorDialog({ open, onOpenChange, doctor, onSave, onError }: DoctorDialogProps) {
   const [formData, setFormData] = useState<DoctorFormData>({
     firstName: "",
     lastName: "",
@@ -135,7 +136,11 @@ export function DoctorDialog({ open, onOpenChange, doctor, onSave }: DoctorDialo
 
       onOpenChange(false)
     } catch (error) {
-      toast.error(`Failed to ${doctor ? "update" : "create"} doctor`)
+      if (onError) {
+        onError(error)
+      } else {
+        toast.error(`Failed to ${doctor ? "update" : "create"} doctor`)
+      }
     } finally {
       setSaving(false)
     }
@@ -185,6 +190,17 @@ export function DoctorDialog({ open, onOpenChange, doctor, onSave }: DoctorDialo
                 required
               />
             </div>}
+            {isEdit && <div className="grid gap-2">
+              <Label htmlFor="email">Email</Label>
+              <Input
+                id="email"
+                type="email"
+                value={formData.email}
+                disabled
+                className="bg-slate-50 text-muted-foreground"
+              />
+              <p className="text-xs text-muted-foreground">Email cannot be changed</p>
+            </div>}
             <div className="grid grid-cols-2 gap-4">
               <div className="grid gap-2">
                 <Label htmlFor="gender">Gender</Label>
@@ -210,6 +226,15 @@ export function DoctorDialog({ open, onOpenChange, doctor, onSave }: DoctorDialo
                   onChange={(e) => setFormData({ ...formData, cnic: e.target.value })}
                   placeholder="12345-6789012-3"
                   required
+                />
+              </div>}
+              { isEdit && <div className="grid gap-2">
+                <Label htmlFor="cnic">CNIC</Label>
+                <Input
+                  id="cnic"
+                  value={formData.cnic}
+                  disabled
+                  className="bg-slate-50 text-muted-foreground"
                 />
               </div>}
             </div>
@@ -241,6 +266,15 @@ export function DoctorDialog({ open, onOpenChange, doctor, onSave }: DoctorDialo
                   onChange={(e) => setFormData({ ...formData, licenseNumber: e.target.value })}
                   placeholder="MD-001-2024"
                   required
+                />
+              </div>}
+              {isEdit && <div className="grid gap-2">
+                <Label htmlFor="licenseNumber">License Number</Label>
+                <Input
+                  id="licenseNumber"
+                  value={formData.licenseNumber}
+                  disabled
+                  className="bg-slate-50 text-muted-foreground"
                 />
               </div>}
               <div className="grid gap-2">

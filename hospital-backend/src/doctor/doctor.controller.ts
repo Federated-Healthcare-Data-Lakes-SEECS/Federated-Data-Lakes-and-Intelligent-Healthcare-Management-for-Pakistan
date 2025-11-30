@@ -37,6 +37,20 @@ export class DoctorController {
 
   @UseGuards(JwtGuard, RolesGuard)
   @Roles(UserRole.ADMIN)
+  @Patch(':id/activate')
+  activateDoctor(@Param('id') id: string) {
+    return this.doctorService.activateDoctor(parseInt(id));
+  }
+
+  @UseGuards(JwtGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
+  @Patch(':id/deactivate')
+  deactivateDoctor(@Param('id') id: string) {
+    return this.doctorService.deactivateDoctor(parseInt(id));
+  }
+
+  @UseGuards(JwtGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
   @Get()
   getAllDoctors() {
     return this.doctorService.getAllDoctors();

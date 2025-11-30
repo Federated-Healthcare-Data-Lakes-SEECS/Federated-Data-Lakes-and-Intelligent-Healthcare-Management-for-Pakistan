@@ -43,7 +43,6 @@ export interface Department {
   id: number
   name: string
   description?: string
-  isActive: boolean
   createdAt: Date
   updatedAt: Date
   code: string
@@ -62,6 +61,7 @@ export interface Doctor {
   qualification: string
   createdAt: Date
   departmentName: string
+  isActive: boolean
 }
 
 export interface Patient {
@@ -71,19 +71,17 @@ export interface Patient {
   email: string
   gender: Gender
   cnic: string
+  isActive: boolean
+  dateOfBirth?: Date | null
+  bloodGroup?: string | null
+  medicalHistory?: string | null
+  familyHistory?: string | null
+  allergies?: string | null
+  address?: string | null
+  phoneNumber?: string | null
+  emergencyContact?: string | null
+  onboardingDone: boolean
   createdAt: Date
-  //
-  // dateOfBirth?: Date
-  // bloodGroup: string
-  // address: string
-  // phoneNumber: string
-  // emergencyContact: string
-  // medicalHistory: string
-  // familyHistory: string
-  // allergies: string
-  // createdBy?: number
-  // user: User
-  // creator?: User
 }
 
 export interface Receptionist {
@@ -94,6 +92,7 @@ export interface Receptionist {
   cnic: string
   gender: Gender
   phoneNumber?: string
+  isActive: boolean
   createdAt: Date
 }
 

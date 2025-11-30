@@ -5,12 +5,13 @@ import {
   Body,
   Patch,
   Param,
+  Delete,
   UseGuards,
 } from '@nestjs/common';
 import { GetUser } from '../auth/decorators';
 import { JwtGuard } from '../auth/guards';
 import { DrugService } from './drug.service';
-import { RegisterDrugDto, UpdateDrugDto } from './dto';
+import { RegisterDrugDto } from './dto';
 import { Roles, UserRole } from '../common/decorators/roles.decorator';
 import { RolesGuard } from '../common/guards/roles.guard';
 
@@ -26,22 +27,27 @@ export class DrugController {
     return this.drugService.registerDrug(dto, creatorId);
   }
 
-  @Patch(':id')
-  @UseGuards(RolesGuard)
-  @Roles(UserRole.ADMIN)
-  updateDrug(@Param('id') id: string, @Body() dto: UpdateDrugDto) {
-    return this.drugService.updateDrug(parseInt(id), dto);
-  }
-
   @Get()
   getAllDrugs() {
     return this.drugService.getAllDrugs();
   }
 
-  @Patch(':id/deactivate')
+  @Get(':id')
+  getDrugById(@Param('id') id: string) {
+    return this.drugService.getDrugById(parseInt(id));
+  }
+
+  @Patch(':id/toggle')
   @UseGuards(RolesGuard)
   @Roles(UserRole.ADMIN)
-  deactivateDrug(@Param('id') id: string) {
-    return this.drugService.deactivateDrug(parseInt(id));
+  toggleDrug(@Param('id') id: string) {
+    return this.drugService.toggleDrug(parseInt(id));
+  }
+
+  @Delete(':id')
+  @UseGuards(RolesGuard)
+  @Roles(UserRole.ADMIN)
+  softDeleteDrug(@Param('id') id: string) {
+    return this.drugService.softDeleteDrug(parseInt(id));
   }
 }

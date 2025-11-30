@@ -25,9 +25,10 @@ interface ReceptionistDialogProps {
   onOpenChange: (open: boolean) => void
   receptionist: Receptionist | null
   onSave: (receptionist: Receptionist) => void
+  onError?: (error: unknown) => void
 }
 
-export function ReceptionistDialog({ open, onOpenChange, receptionist, onSave }: ReceptionistDialogProps) {
+export function ReceptionistDialog({ open, onOpenChange, receptionist, onSave, onError }: ReceptionistDialogProps) {
   const [formData, setFormData] = useState<ReceptionistFormData>({
     firstName: "",
     lastName: "",
@@ -108,7 +109,11 @@ export function ReceptionistDialog({ open, onOpenChange, receptionist, onSave }:
       }
       onOpenChange(false)
     } catch (error) {
-      toast.error(`Failed to ${receptionist ? "update" : "create"} receptionist`)
+      if (onError) {
+        onError(error)
+      } else {
+        toast.error(`Failed to ${receptionist ? "update" : "create"} receptionist`)
+      }
     } finally {
       setSaving(false)
     }
@@ -158,6 +163,17 @@ export function ReceptionistDialog({ open, onOpenChange, receptionist, onSave }:
                 required
               />
             </div>}
+            { isEdit && <div className="grid gap-2">
+              <Label htmlFor="email">Email</Label>
+              <Input
+                id="email"
+                type="email"
+                value={formData.email}
+                disabled
+                className="bg-slate-50 text-muted-foreground"
+              />
+              <p className="text-xs text-muted-foreground">Email cannot be changed</p>
+            </div>}
             <div className="grid grid-cols-2 gap-4">
               <div className="grid gap-2">
                 <Label htmlFor="gender">Gender</Label>
@@ -183,6 +199,15 @@ export function ReceptionistDialog({ open, onOpenChange, receptionist, onSave }:
                   onChange={(e) => setFormData({ ...formData, cnic: e.target.value })}
                   placeholder="12345-6789012-3"
                   required
+                />
+              </div>}
+              { isEdit && <div className="grid gap-2">
+                <Label htmlFor="cnic">CNIC</Label>
+                <Input
+                  id="cnic"
+                  value={formData.cnic}
+                  disabled
+                  className="bg-slate-50 text-muted-foreground"
                 />
               </div>}
             </div>

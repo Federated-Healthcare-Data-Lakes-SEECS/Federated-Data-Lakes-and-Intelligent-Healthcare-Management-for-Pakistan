@@ -5,17 +5,18 @@ import {
   Body,
   Patch,
   Param,
+  Delete,
   UseGuards,
 } from '@nestjs/common';
 import { GetUser } from '../auth/decorators';
 import { JwtGuard } from '../auth/guards';
 import { LabTestService } from './labtest.service';
-import { RegisterLabTestDto, UpdateLabTestDto } from './dto';
+import { RegisterLabTestDto } from './dto';
 import { Roles, UserRole } from '../common/decorators/roles.decorator';
 import { RolesGuard } from '../common/guards/roles.guard';
 
 @UseGuards(JwtGuard)
-@Controller('lab-tests')
+@Controller('labtests')
 export class LabTestController {
   constructor(private labTestService: LabTestService) {}
 
@@ -29,16 +30,14 @@ export class LabTestController {
     return this.labTestService.registerLabTest(dto, creatorId);
   }
 
-  @Patch(':id')
-  @UseGuards(RolesGuard)
-  @Roles(UserRole.ADMIN)
-  updateLabTest(@Param('id') id: string, @Body() dto: UpdateLabTestDto) {
-    return this.labTestService.updateLabTest(parseInt(id), dto);
-  }
-
   @Get()
   getAllLabTests() {
     return this.labTestService.getAllLabTests();
+  }
+
+  @Get('templates/active')
+  getActiveTemplates() {
+    return this.labTestService.getActiveTemplates();
   }
 
   @Patch(':id/toggle')
@@ -46,6 +45,13 @@ export class LabTestController {
   @Roles(UserRole.ADMIN)
   toggleLabTest(@Param('id') id: string) {
     return this.labTestService.toggleLabTest(parseInt(id));
+  }
+
+  @Delete(':id')
+  @UseGuards(RolesGuard)
+  @Roles(UserRole.ADMIN)
+  softDeleteLabTest(@Param('id') id: string) {
+    return this.labTestService.softDeleteLabTest(parseInt(id));
   }
 
   @Get(':id')

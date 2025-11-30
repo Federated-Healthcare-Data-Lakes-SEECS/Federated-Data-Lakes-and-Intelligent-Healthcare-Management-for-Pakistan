@@ -3,7 +3,6 @@ import {
     NotFoundException,
     BadRequestException,
     ConflictException,
-    ForbiddenException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import * as bcrypt from 'bcryptjs';
@@ -17,7 +16,6 @@ import {
     BookWalkinAppointmentDto,
     GetReceptionistAppointmentsQueryDto,
 } from './dto';
-import { create } from 'domain';
 import { WalkinAppointmentStatus } from '@prisma/client';
 
 @Injectable()
@@ -25,18 +23,23 @@ export class ReceptionistService {
     constructor(private prisma: PrismaService) {}
     
     async registerReceptionist(dto: RegisterReceptionistDto) {
-        // 1. Check for existing user with same email or CNIC
-        const existingUser = await this.prisma.user.findFirst({
-            where: {
-                OR: [
-                    { email: dto.email },
-                    { cnic: dto.cnic },
-                ],
-            },
+        // 1. Check for existing user with same email
+        const existingUserByEmail = await this.prisma.user.findFirst({
+            where: { email: dto.email },
         });
 
-        if(existingUser) {
-            throw new ConflictException('User with this email or CNIC already exists');
+        if (existingUserByEmail) {
+            throw new ConflictException(`Email "${dto.email}" is already registered to another user.`);
+        }
+
+        // Check CNIC separately for better error message
+        if (dto.cnic) {
+            const existingUserByCnic = await this.prisma.user.findFirst({
+                where: { cnic: dto.cnic },
+            });
+            if (existingUserByCnic) {
+                throw new ConflictException(`CNIC "${dto.cnic}" is already registered to another user.`);
+            }
         }
 
         // 2. Hash the password
@@ -82,7 +85,7 @@ export class ReceptionistService {
                     throw new NotFoundException('Role "RECEPTIONIST" not found');
                 }
 
-                const userRole = await prisma.userRole.create({
+                await prisma.userRole.create({
                     data: {
                         userId: user.id,
                         roleId: role.id,
@@ -95,6 +98,18 @@ export class ReceptionistService {
             return this.transformReceptionistResponse(receptionist);
 
         } catch (error) {
+            if (error instanceof ConflictException || error instanceof NotFoundException) {
+                throw error;
+            }
+            if (error.code === 'P2002') {
+                const target = error.meta?.target;
+                if (target?.includes('email')) {
+                    throw new ConflictException('This email is already registered to another user.');
+                }
+                if (target?.includes('cnic')) {
+                    throw new ConflictException('This CNIC is already registered to another user.');
+                }
+            }
             throw new BadRequestException('Error creating receptionist');
         }
     }
@@ -110,19 +125,35 @@ export class ReceptionistService {
             throw new NotFoundException('Receptionist not found');
         }
 
+        // Check for email uniqueness if being updated
+        if (dto.email && dto.email !== receptionist.user.email) {
+            const existingEmail = await this.prisma.user.findFirst({
+                where: { 
+                    email: dto.email,
+                    id: { not: receptionist.userId },
+                },
+            });
+            if (existingEmail) {
+                throw new ConflictException(`Email "${dto.email}" is already registered to another user.`);
+            }
+        }
+
         try {
             const result = await this.prisma.$transaction(async (prisma) => {
                 // 2. Prepare user update data
                 const userUpdateData: any = {};
                 if (dto.firstName) userUpdateData.firstName = dto.firstName;
                 if (dto.lastName) userUpdateData.lastName = dto.lastName;
-                if(dto.gender) userUpdateData.gender = dto.gender;
+                if (dto.gender) userUpdateData.gender = dto.gender;
+                if (dto.email) userUpdateData.email = dto.email;
 
                 // 3. Update the user
-                const updatedUser = await prisma.user.update({
-                    where: { id: receptionist.userId },
-                    data: userUpdateData,
-                });
+                if (Object.keys(userUpdateData).length > 0) {
+                    await prisma.user.update({
+                        where: { id: receptionist.userId },
+                        data: userUpdateData,
+                    });
+                }
 
                 // 4. Prepare receptionist update data
                 const receptionistUpdateData: any = {};
@@ -140,8 +171,60 @@ export class ReceptionistService {
             // 6. Transform and return the response
             return this.transformReceptionistResponse(result);
         } catch (error) {
+            if (error instanceof ConflictException) {
+                throw error;
+            }
+            if (error.code === 'P2002') {
+                throw new ConflictException('This email is already registered to another user.');
+            }
             throw new BadRequestException('Error updating receptionist');
         }
+    }
+
+    async activateReceptionist(id: number) {
+        const receptionist = await this.prisma.receptionist.findUnique({
+            where: { id },
+            include: { user: true },
+        });
+
+        if (!receptionist) {
+            throw new NotFoundException('Receptionist not found');
+        }
+
+        await this.prisma.user.update({
+            where: { id: receptionist.userId },
+            data: { isActive: true },
+        });
+
+        const updatedReceptionist = await this.prisma.receptionist.findUnique({
+            where: { id },
+            include: { user: true },
+        });
+
+        return this.transformReceptionistResponse(updatedReceptionist);
+    }
+
+    async deactivateReceptionist(id: number) {
+        const receptionist = await this.prisma.receptionist.findUnique({
+            where: { id },
+            include: { user: true },
+        });
+
+        if (!receptionist) {
+            throw new NotFoundException('Receptionist not found');
+        }
+
+        await this.prisma.user.update({
+            where: { id: receptionist.userId },
+            data: { isActive: false },
+        });
+
+        const updatedReceptionist = await this.prisma.receptionist.findUnique({
+            where: { id },
+            include: { user: true },
+        });
+
+        return this.transformReceptionistResponse(updatedReceptionist);
     }
 
     async getAllReceptionists() {
@@ -206,6 +289,7 @@ export class ReceptionistService {
             cnic: receptionist.user.cnic,
             gender: receptionist.user.gender,
             phoneNumber: receptionist.phoneNumber,
+            isActive: receptionist.user.isActive,
             createdAt: receptionist.user.createdAt,
         });
         return response;

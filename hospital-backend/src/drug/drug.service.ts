@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { RegisterDrugDto, UpdateDrugDto, DrugResponseDto } from './dto';
+import { RegisterDrugDto, DrugResponseDto } from './dto';
 import { plainToInstance } from 'class-transformer';
 
 @Injectable()
@@ -20,27 +20,7 @@ export class DrugService {
         dosageForm: dto.dosageForm,
         supplier: dto.supplier,
         strength: dto.strength,
-        isActive: dto.isActive,
-      },
-    });
-
-    return plainToInstance(DrugResponseDto, drug, {
-      excludeExtraneousValues: true,
-    });
-  }
-
-  async updateDrug(id: number, dto: UpdateDrugDto): Promise<DrugResponseDto> {
-    const drug = await this.prisma.drug.update({
-      where: { id },
-      data: {
-        name: dto.name,
-        description: dto.description,
-        formulaName: dto.formulaName,
-        chemicalFormula: dto.chemicalFormula,
-        dosageForm: dto.dosageForm,
-        supplier: dto.supplier,
-        strength: dto.strength,
-        isActive: dto.isActive,
+        isActive: dto.isActive ?? true,
       },
     });
 
@@ -50,12 +30,11 @@ export class DrugService {
   }
 
   async getAllDrugs(): Promise<DrugResponseDto[]> {
-    const drugs = await this.prisma.drug.findMany();
+    const drugs = await this.prisma.drug.findMany({
+      where: { deletedAt: null },
+    });
 
-    if (!drugs) {
-      throw new NotFoundException('No drugs found');
-    }
-    if (drugs.length === 0) {
+    if (!drugs || drugs.length === 0) {
       return [];
     }
     return plainToInstance(DrugResponseDto, drugs, {
@@ -63,8 +42,24 @@ export class DrugService {
     });
   }
 
-  async deactivateDrug(id: number): Promise<DrugResponseDto> {
-    const drug = await this.prisma.drug.findUnique({ where: { id } });
+  async getDrugById(id: number): Promise<DrugResponseDto> {
+    const drug = await this.prisma.drug.findFirst({
+      where: { id, deletedAt: null },
+    });
+
+    if (!drug) {
+      throw new NotFoundException('Drug not found');
+    }
+
+    return plainToInstance(DrugResponseDto, drug, {
+      excludeExtraneousValues: true,
+    });
+  }
+
+  async toggleDrug(id: number): Promise<DrugResponseDto> {
+    const drug = await this.prisma.drug.findFirst({
+      where: { id, deletedAt: null },
+    });
 
     if (!drug) {
       throw new NotFoundException('Drug not found');
@@ -72,11 +67,28 @@ export class DrugService {
 
     const updatedDrug = await this.prisma.drug.update({
       where: { id },
-      data: { isActive: false },
+      data: { isActive: !drug.isActive },
     });
 
     return plainToInstance(DrugResponseDto, updatedDrug, {
       excludeExtraneousValues: true,
     });
+  }
+
+  async softDeleteDrug(id: number): Promise<{ message: string }> {
+    const drug = await this.prisma.drug.findFirst({
+      where: { id, deletedAt: null },
+    });
+
+    if (!drug) {
+      throw new NotFoundException('Drug not found');
+    }
+
+    await this.prisma.drug.update({
+      where: { id },
+      data: { deletedAt: new Date(), isActive: false },
+    });
+
+    return { message: 'Drug deleted successfully' };
   }
 }

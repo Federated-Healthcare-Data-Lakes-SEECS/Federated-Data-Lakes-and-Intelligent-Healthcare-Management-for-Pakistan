@@ -1,12 +1,13 @@
 "use client";
 
-import { useState, useMemo } from "react";
-import { createCheckup } from "@/lib/api/doctor";
+import { useState, useMemo, useEffect, useCallback } from "react";
+import { submitCheckup, saveDraft, getCheckupByAppointmentId } from "@/lib/api/doctor";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Switch } from "@/components/ui/switch";
 import {
   Select,
   SelectContent,
@@ -15,14 +16,37 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Plus, X, Activity, Stethoscope, Pill, FlaskConical, ClipboardList, Undo2 } from 'lucide-react';
-
-import type { UpcomingAppointment, Drug, LabTest } from "@/lib/api/doctor";
+import { 
+  Plus, 
+  X, 
+  Activity, 
+  Stethoscope, 
+  Pill, 
+  FlaskConical, 
+  ClipboardList, 
+  Undo2, 
+  Mic, 
+  MicOff, 
+  Pause, 
+  Play, 
+  Square,
+  Loader2,
+  Sparkles,
+  AlertCircle
+} from 'lucide-react';
+import { 
+  useAudioRecording, 
+  formatDuration, 
+  getAudioRecordingPreference, 
+  setAudioRecordingPreference 
+} from "@/hooks/use-audio-recording";
+import type { UpcomingAppointment, Drug, LabTest, CheckupData } from "@/lib/api/doctor";
 
 interface CheckupFormProps {
   appointment: UpcomingAppointment;
   drugs: Drug[];
   labTests: LabTest[];
+  onCheckupComplete?: () => void;
 }
 
 interface MedicationForm {
@@ -47,6 +71,7 @@ export default function CheckupForm({
   appointment,
   drugs,
   labTests,
+  onCheckupComplete,
 }: CheckupFormProps) {
   const [formData, setFormData] = useState({
     bloodPressure: "",
@@ -64,14 +89,113 @@ export default function CheckupForm({
   const [selectedDrug, setSelectedDrug] = useState("");
   const [selectedTest, setSelectedTest] = useState("");
 
-  // UI state for collapsible sections
+  // UI state
   const [showPrescription, setShowPrescription] = useState(true);
   const [showLabTests, setShowLabTests] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [savingDraft, setSavingDraft] = useState(false);
+  const [loadingExisting, setLoadingExisting] = useState(true);
+  
+  // Existing checkup state
+  const [existingCheckup, setExistingCheckup] = useState<CheckupData | null>(null);
+  const [isCompleted, setIsCompleted] = useState(false);
 
-  const isFormValid = useMemo(() => formData.symptoms.trim() !== '' && formData.diagnosis.trim() !== '', [formData]);
+  // Audio recording
+  const [audioEnabled, setAudioEnabled] = useState(() => getAudioRecordingPreference());
+  const audioRecording = useAudioRecording();
+
+  // Load existing checkup data on mount
+  useEffect(() => {
+    async function loadExistingCheckup() {
+      try {
+        setLoadingExisting(true);
+        const checkup = await getCheckupByAppointmentId(appointment.id);
+        if (checkup) {
+          setExistingCheckup(checkup);
+          setIsCompleted(!checkup.isDraft);
+          
+          // Pre-fill form with existing data
+          setFormData({
+            bloodPressure: checkup.bloodPressure || "",
+            temperature: checkup.temperature || "",
+            heartRate: checkup.heartRate || "",
+            bloodSugar: checkup.bloodSugar || "",
+            symptoms: checkup.symptoms || "",
+            diagnosis: checkup.diagnosis || "",
+            notes: checkup.notes || "",
+            additionalMedications: checkup.prescription?.additionalMedications || "",
+            additionalTests: checkup.checkupTestRecommendation?.additionalTests || "",
+          });
+          
+          // Pre-fill medications
+          if (checkup.prescription?.medications) {
+            setSelectedDrugs(checkup.prescription.medications.map(med => ({
+              drugId: med.drug.id,
+              name: med.drug.name,
+              strength: med.drug.strength,
+              dosageForm: med.drug.dosageForm,
+              formulaName: med.drug.formulaName,
+              quantity: 0,
+              dosage: med.dosePerIntake,
+              dailyFrequency: med.timesPerDay,
+              durationDays: med.totalDays,
+              guidelines: med.instructions || "",
+            })));
+          }
+          
+          // Pre-fill lab tests
+          if (checkup.checkupTestRecommendation?.recommendedLabTests) {
+            setSelectedLabTests(checkup.checkupTestRecommendation.recommendedLabTests.map(test => ({
+              testId: test.labTest.id,
+              name: test.labTest.name,
+            })));
+          }
+        }
+      } catch (error) {
+        console.error("Error loading existing checkup:", error);
+      } finally {
+        setLoadingExisting(false);
+      }
+    }
+    
+    loadExistingCheckup();
+  }, [appointment.id]);
+
+  // Start recording when form loads and audio is enabled
+  useEffect(() => {
+    if (!loadingExisting && audioEnabled && !isCompleted && audioRecording.isSupported && !audioRecording.isRecording) {
+      audioRecording.startRecording();
+    }
+    
+    return () => {
+      // Stop recording when component unmounts
+      if (audioRecording.isRecording) {
+        audioRecording.resetRecording();
+      }
+    };
+  }, [loadingExisting, audioEnabled, isCompleted]);
+
+  // Handle audio preference toggle
+  const handleAudioToggle = useCallback((enabled: boolean) => {
+    setAudioEnabled(enabled);
+    setAudioRecordingPreference(enabled);
+    
+    if (enabled && !audioRecording.isRecording && audioRecording.isSupported) {
+      audioRecording.startRecording();
+    } else if (!enabled && audioRecording.isRecording) {
+      audioRecording.resetRecording();
+    }
+  }, [audioRecording]);
+
+  const isFormValid = useMemo(() => 
+    formData.symptoms.trim() !== '' && formData.diagnosis.trim() !== '', 
+    [formData]
+  );
+  
   const isDirty = useMemo(() => {
-    return Object.values(formData).some(v => v.trim() !== '') || selectedDrugs.length > 0 || selectedLabTests.length > 0;
+    return Object.values(formData).some(v => v.trim() !== '') || 
+           selectedDrugs.length > 0 || 
+           selectedLabTests.length > 0;
   }, [formData, selectedDrugs, selectedLabTests]);
 
   const resetForm = () => {
@@ -89,6 +213,10 @@ export default function CheckupForm({
     });
     setSelectedDrugs([]);
     setSelectedLabTests([]);
+    audioRecording.resetRecording();
+    if (audioEnabled && audioRecording.isSupported) {
+      audioRecording.startRecording();
+    }
   };
 
   const handleAddDrug = () => {
@@ -141,9 +269,54 @@ export default function CheckupForm({
     setSelectedLabTests(selectedLabTests.filter((t) => t.testId !== testId));
   };
 
+  const handleSaveDraft = async () => {
+    setSavingDraft(true);
+    
+    try {
+      const draftData = {
+        appointmentId: appointment.id,
+        bloodPressure: formData.bloodPressure || undefined,
+        temperature: formData.temperature || undefined,
+        heartRate: formData.heartRate || undefined,
+        bloodSugar: formData.bloodSugar || undefined,
+        symptoms: formData.symptoms || undefined,
+        diagnosis: formData.diagnosis || undefined,
+        notes: formData.notes || undefined,
+        additionalMedications: formData.additionalMedications || undefined,
+        additionalTests: formData.additionalTests || undefined,
+        medications: selectedDrugs.map(({ drugId, dosage, dailyFrequency, durationDays, guidelines }) => ({
+          drugId,
+          dosePerIntake: dosage,
+          timesPerDay: dailyFrequency,
+          totalDays: durationDays,
+          instructions: guidelines || undefined,
+        })),
+        recommendedLabTestIds: selectedLabTests.map(({ testId }) => testId),
+      };
+      
+      await saveDraft(draftData);
+      alert("Draft saved successfully!");
+    } catch (error: any) {
+      console.error("Error saving draft:", error);
+      alert(error.response?.data?.message || "Failed to save draft. Please try again.");
+    } finally {
+      setSavingDraft(false);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!isFormValid) return;
+    
+    // Stop recording if active and get the blob directly
+    let audioBlob: Blob | null = null;
+    if (audioEnabled && audioRecording.isRecording) {
+      audioBlob = await audioRecording.stopRecording();
+    } else if (audioEnabled && audioRecording.audioBlob) {
+      // Use existing blob if recording was already stopped
+      audioBlob = audioRecording.audioBlob;
+    }
+    
     setSubmitting(true);
     
     try {
@@ -168,16 +341,21 @@ export default function CheckupForm({
         recommendedLabTestIds: selectedLabTests.map(({ testId }) => testId),
       };
       
-      await createCheckup(checkupData);
-      alert("Checkup saved successfully!");
+      // Log for debugging
+      console.log("Submitting checkup with audio:", audioBlob ? `${(audioBlob.size / 1024).toFixed(2)} KB` : "No audio");
       
-      // Reset form after successful submission
-      setTimeout(() => {
-        resetForm();
-      }, 300);
+      await submitCheckup(checkupData, audioBlob);
+      
+      alert("Checkup submitted successfully!");
+      setIsCompleted(true);
+      onCheckupComplete?.();
     } catch (error: any) {
       console.error("Error submitting checkup:", error);
-      alert(error.response?.data?.message || "Failed to save checkup. Please try again.");
+      alert(error.response?.data?.message || "Failed to submit checkup. Please try again.");
+      // Restart recording if it was active
+      if (audioEnabled && audioRecording.isSupported) {
+        audioRecording.startRecording();
+      }
     } finally {
       setSubmitting(false);
     }
@@ -193,8 +371,138 @@ export default function CheckupForm({
     return age;
   }, [appointment.patient.dateOfBirth]);
 
+  if (loadingExisting) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  if (isCompleted) {
+    return (
+      <Card className="border shadow-sm">
+        <CardContent className="pt-6">
+          <div className="text-center space-y-4">
+            <div className="w-16 h-16 mx-auto bg-green-100 rounded-full flex items-center justify-center">
+              <Activity className="w-8 h-8 text-green-600" />
+            </div>
+            <h3 className="text-xl font-semibold">Checkup Completed</h3>
+            <p className="text-muted-foreground">
+              This checkup has been submitted and the appointment is marked as completed.
+            </p>
+            {existingCheckup?.insights && (
+              <Card className="bg-gradient-to-r from-purple-50 to-blue-50 border-purple-200">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm flex items-center gap-2">
+                    <Sparkles className="w-4 h-4 text-purple-600" />
+                    AI Insights
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm text-muted-foreground">{existingCheckup.insights}</p>
+                </CardContent>
+              </Card>
+            )}
+            {existingCheckup?.hasAudio && !existingCheckup?.insights && (
+              <p className="text-sm text-muted-foreground flex items-center justify-center gap-2">
+                <Loader2 className="w-4 h-4 animate-spin" />
+                Audio is being processed for insights...
+              </p>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
+      {/* Audio Recording Status Bar */}
+      <Card className={`border shadow-sm ${audioRecording.isRecording ? 'border-red-300 bg-red-50/50' : ''}`}>
+        <CardContent className="py-4">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2">
+                <Switch
+                  id="audio-recording"
+                  checked={audioEnabled}
+                  onCheckedChange={handleAudioToggle}
+                  disabled={isCompleted}
+                />
+                <Label htmlFor="audio-recording" className="text-sm font-medium cursor-pointer">
+                  Record Audio
+                </Label>
+              </div>
+              
+              {audioEnabled && !audioRecording.isSupported && (
+                <Badge variant="destructive" className="gap-1">
+                  <AlertCircle className="w-3 h-3" />
+                  Not Supported
+                </Badge>
+              )}
+              
+              {audioEnabled && audioRecording.error && (
+                <Badge variant="destructive" className="gap-1">
+                  <AlertCircle className="w-3 h-3" />
+                  {audioRecording.error}
+                </Badge>
+              )}
+            </div>
+            
+            {audioEnabled && audioRecording.isSupported && (
+              <div className="flex items-center gap-3">
+                {audioRecording.isRecording && (
+                  <>
+                    <div className="flex items-center gap-2">
+                      <div className={`w-3 h-3 rounded-full ${audioRecording.isPaused ? 'bg-yellow-500' : 'bg-red-500 animate-pulse'}`} />
+                      <span className="text-sm font-mono">{formatDuration(audioRecording.duration)}</span>
+                    </div>
+                    
+                    <div className="flex items-center gap-1">
+                      {audioRecording.isPaused ? (
+                        <Button type="button" size="sm" variant="ghost" onClick={audioRecording.resumeRecording}>
+                          <Play className="w-4 h-4" />
+                        </Button>
+                      ) : (
+                        <Button type="button" size="sm" variant="ghost" onClick={audioRecording.pauseRecording}>
+                          <Pause className="w-4 h-4" />
+                        </Button>
+                      )}
+                      <Button type="button" size="sm" variant="ghost" onClick={audioRecording.stopRecording}>
+                        <Square className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  </>
+                )}
+                
+                {!audioRecording.isRecording && audioRecording.audioBlob && (
+                  <div className="flex items-center gap-2">
+                    <Badge variant="secondary" className="gap-1">
+                      <Mic className="w-3 h-3" />
+                      Recording saved ({formatDuration(audioRecording.duration)})
+                    </Badge>
+                    <Button type="button" size="sm" variant="ghost" onClick={audioRecording.resetRecording}>
+                      <X className="w-4 h-4" />
+                    </Button>
+                    <Button type="button" size="sm" variant="outline" onClick={audioRecording.startRecording}>
+                      Re-record
+                    </Button>
+                  </div>
+                )}
+                
+                {!audioRecording.isRecording && !audioRecording.audioBlob && (
+                  <Button type="button" size="sm" variant="outline" onClick={audioRecording.startRecording} className="gap-2">
+                    <Mic className="w-4 h-4" />
+                    Start Recording
+                  </Button>
+                )}
+              </div>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Patient Info Header */}
       <Card className="border shadow-sm bg-gradient-to-r from-secondary/40 via-secondary/20 to-secondary/10">
         <CardContent className="pt-6">
@@ -218,8 +526,8 @@ export default function CheckupForm({
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <VitalInput id="bp" label="Blood Pressure" placeholder="120/80" value={formData.bloodPressure} onChange={v => setFormData({ ...formData, bloodPressure: v })} />
           <VitalInput id="temp" label="Temperature" placeholder="98.6°F" value={formData.temperature} onChange={v => setFormData({ ...formData, temperature: v })} />
-            <VitalInput id="hr" label="Heart Rate" placeholder="72 bpm" value={formData.heartRate} onChange={v => setFormData({ ...formData, heartRate: v })} />
-            <VitalInput id="bs" label="Blood Sugar" placeholder="110 mg/dL" value={formData.bloodSugar} onChange={v => setFormData({ ...formData, bloodSugar: v })} />
+          <VitalInput id="hr" label="Heart Rate" placeholder="72 bpm" value={formData.heartRate} onChange={v => setFormData({ ...formData, heartRate: v })} />
+          <VitalInput id="bs" label="Blood Sugar" placeholder="110 mg/dL" value={formData.bloodSugar} onChange={v => setFormData({ ...formData, bloodSugar: v })} />
         </div>
       </SectionCard>
 
@@ -341,14 +649,16 @@ export default function CheckupForm({
       <div className="sticky bottom-4 left-0 right-0 z-10">
         <div className="flex flex-col sm:flex-row gap-2 justify-end bg-background/90 backdrop-blur supports-[backdrop-filter]:bg-background/70 p-3 rounded-lg border shadow-sm">
           <div className="flex gap-2 flex-wrap">
-            <Button type="button" variant="ghost" size="sm" onClick={resetForm} disabled={!isDirty || submitting}>
+            <Button type="button" variant="ghost" size="sm" onClick={resetForm} disabled={!isDirty || submitting || savingDraft}>
               <Undo2 className="w-4 h-4" /> Reset
             </Button>
-            <Button type="button" variant="outline" size="sm" disabled={!isDirty || submitting}>
-              <ClipboardList className="w-4 h-4" /> Save Draft
+            <Button type="button" variant="outline" size="sm" onClick={handleSaveDraft} disabled={!isDirty || submitting || savingDraft}>
+              {savingDraft ? <Loader2 className="w-4 h-4 animate-spin" /> : <ClipboardList className="w-4 h-4" />} 
+              {savingDraft ? 'Saving...' : 'Save Draft'}
             </Button>
-            <Button type="submit" size="sm" disabled={!isFormValid || submitting} className="gap-2">
-              {submitting ? 'Saving...' : 'Submit Checkup'}
+            <Button type="submit" size="sm" disabled={!isFormValid || submitting || savingDraft} className="gap-2">
+              {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
+              {submitting ? 'Submitting...' : 'Submit Checkup'}
             </Button>
           </div>
         </div>

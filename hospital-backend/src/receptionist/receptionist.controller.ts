@@ -45,6 +45,18 @@ export class ReceptionistController {
         return this.receptionistService.updateReceptionist(parseInt(id), dto);
     }
 
+    @Patch(':id/activate')
+    @Roles(UserRole.ADMIN)
+    activateReceptionist(@Param('id') id: string): Promise<ReceptionistResponseDto> {
+        return this.receptionistService.activateReceptionist(parseInt(id));
+    }
+
+    @Patch(':id/deactivate')
+    @Roles(UserRole.ADMIN)
+    deactivateReceptionist(@Param('id') id: string): Promise<ReceptionistResponseDto> {
+        return this.receptionistService.deactivateReceptionist(parseInt(id));
+    }
+
     @Get()
     getAllReceptionists(): Promise<ReceptionistResponseDto[]> {
         return this.receptionistService.getAllReceptionists();

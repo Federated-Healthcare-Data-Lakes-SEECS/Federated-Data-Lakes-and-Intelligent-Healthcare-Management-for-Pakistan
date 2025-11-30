@@ -22,11 +22,11 @@ import api from "@/lib/api"
 interface LabTestDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
-  labTest: LabTest | null
   onSave: (labTest: LabTest) => void
+  onError?: (error: unknown) => void
 }
 
-export function LabTestDialog({ open, onOpenChange, labTest, onSave }: LabTestDialogProps) {
+export function LabTestDialog({ open, onOpenChange, onSave, onError }: LabTestDialogProps) {
   const [formData, setFormData] = useState<LabTestFormData>({
     name: "",
     description: "",
@@ -37,29 +37,19 @@ export function LabTestDialog({ open, onOpenChange, labTest, onSave }: LabTestDi
   const [templates, setTemplates] = useState<LabTestTemplate[]>([])
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
-  const isEdit = labTest !== null;
 
   useEffect(() => {
     if (open) {
       loadDepartments()
       loadTemplates()
-      if (labTest) {
-        setFormData({
-          name: labTest.name,
-          description: labTest.description,
-          departmentName: labTest.departmentName,
-          templateId: labTest.templateId || 0,
-        })
-      } else {
-        setFormData({
-          name: "",
-          description: "",
-          departmentName: "",
-          templateId: 0,
-        })
-      }
+      setFormData({
+        name: "",
+        description: "",
+        departmentName: "",
+        templateId: 0,
+      })
     }
-  }, [open, labTest])
+  }, [open])
 
   const loadDepartments = async () => {
     try {
@@ -76,7 +66,8 @@ export function LabTestDialog({ open, onOpenChange, labTest, onSave }: LabTestDi
   const loadTemplates = async () => {
     try {
       setLoading(true)
-      const response = await api.get("/labtesttemplate")
+      // Only fetch active templates for the dropdown
+      const response = await api.get("/labtests/templates/active")
       setTemplates(response.data)
     } catch (error) {
       toast.error("Failed to load templates")
@@ -102,16 +93,15 @@ export function LabTestDialog({ open, onOpenChange, labTest, onSave }: LabTestDi
     }
     try {
       setSaving(true)
-      if (labTest) {
-        let response = await api.patch(`/lab-tests/${labTest.id}`, formData)
-        onSave(response.data)
-      } else {
-        let response = await api.post('/lab-tests/register', formData)
-        onSave(response.data)
-      }
+      let response = await api.post('/labtests/register', formData)
+      onSave(response.data)
       onOpenChange(false)
     } catch (error) {
-      toast.error(`Failed to ${labTest ? "update" : "create"} lab test`)
+      if (onError) {
+        onError(error)
+      } else {
+        toast.error("Failed to create lab test")
+      }
     } finally {
       setSaving(false)
     }
@@ -121,9 +111,9 @@ export function LabTestDialog({ open, onOpenChange, labTest, onSave }: LabTestDi
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>{labTest ? "Edit Lab Test" : "Add New Lab Test"}</DialogTitle>
+          <DialogTitle>Add New Lab Test</DialogTitle>
           <DialogDescription>
-            {labTest ? "Update lab test information" : "Create a new lab test"}
+            Create a new lab test
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit}>
@@ -191,7 +181,7 @@ export function LabTestDialog({ open, onOpenChange, labTest, onSave }: LabTestDi
               Cancel
             </Button>
             <Button type="submit" disabled={saving}>
-              {saving ? "Saving..." : labTest ? "Update" : "Create"}
+              {saving ? "Saving..." : "Create"}
             </Button>
           </DialogFooter>
         </form>

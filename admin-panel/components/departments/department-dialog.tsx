@@ -26,9 +26,10 @@ interface DepartmentDialogProps {
   onOpenChange: (open: boolean) => void
   department: Department | null
   onSave: (department: Department) => void
+  onError?: (error: unknown) => void
 }
 
-export function DepartmentDialog({ open, onOpenChange, department, onSave }: DepartmentDialogProps) {
+export function DepartmentDialog({ open, onOpenChange, department, onSave, onError }: DepartmentDialogProps) {
   const [formData, setFormData] = useState<DepartmentFormData>({
     name: "",
     description: "",
@@ -95,7 +96,11 @@ export function DepartmentDialog({ open, onOpenChange, department, onSave }: Dep
       }
       onOpenChange(false)
     } catch (error) {
-      toast.error(`Failed to ${department ? "update" : "create"} department`)
+      if (onError) {
+        onError(error)
+      } else {
+        toast.error(`Failed to ${department ? "update" : "create"} department`)
+      }
     } finally {
       setSaving(false)
     }

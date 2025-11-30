@@ -2,13 +2,11 @@ import {
   Injectable,
   NotFoundException,
   BadRequestException,
-  ConflictException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { plainToInstance } from 'class-transformer';
 import {
   RegisterLabTestDto,
-  UpdateLabTestDto,
   LabTestResponseDto,
 } from './dto';
 
@@ -27,15 +25,15 @@ export class LabTestService {
     if (!department) {
       throw new NotFoundException('Department not found');
     }
-    // Check template exists
+    // Check template exists and is active
     if (!dto.templateId) {
       throw new BadRequestException('templateId is required');
     }
-    const template = await this.prisma.labTestTemplate.findUnique({
-      where: { id: dto.templateId },
+    const template = await this.prisma.labTestTemplate.findFirst({
+      where: { id: dto.templateId, isActive: true, deletedAt: null },
     });
     if (!template) {
-      throw new NotFoundException('Lab test template not found');
+      throw new NotFoundException('Lab test template not found or is inactive');
     }
     // Create lab test
     const labTest = await this.prisma.labTest.create({
@@ -52,43 +50,13 @@ export class LabTestService {
     });
   }
 
-  async updateLabTest(
-    id: number,
-    dto: UpdateLabTestDto,
-  ): Promise<LabTestResponseDto> {
-    const labTest = await this.prisma.labTest.findUnique({ where: { id } });
-    if (!labTest) {
-      throw new NotFoundException('LabTest not found');
-    }
-    // If updating templateId, check existence
-    if (dto.templateId) {
-      const template = await this.prisma.labTestTemplate.findUnique({
-        where: { id: dto.templateId },
-      });
-      if (!template) {
-        throw new NotFoundException('Lab test template not found');
-      }
-    }
-    const updatedLabTest = await this.prisma.labTest.update({
-      where: { id },
-      data: {
-        name: dto.name,
-        description: dto.description,
-        templateId: dto.templateId,
-      },
-      include: { department: true, template: true },
-    });
-    return plainToInstance(LabTestResponseDto, updatedLabTest, {
-      excludeExtraneousValues: true,
-    });
-  }
-
   async getAllLabTests(): Promise<LabTestResponseDto[]> {
     const labTests = await this.prisma.labTest.findMany({
+      where: { deletedAt: null },
       include: { department: true, template: true },
     });
     if (!labTests || labTests.length === 0) {
-      throw new NotFoundException('No lab tests found');
+      return [];
     }
     return plainToInstance(LabTestResponseDto, labTests, {
       excludeExtraneousValues: true,
@@ -96,7 +64,10 @@ export class LabTestService {
   }
 
   async getLabTestById(id: number): Promise<LabTestResponseDto> {
-    const labTest = await this.prisma.labTest.findUnique({ where: { id }, include: { department: true, template: true } });
+    const labTest = await this.prisma.labTest.findFirst({
+      where: { id, deletedAt: null },
+      include: { department: true, template: true },
+    });
     if (!labTest) {
       throw new NotFoundException('LabTest not found');
     }
@@ -113,11 +84,11 @@ export class LabTestService {
       throw new NotFoundException(`Department '${departmentName}' not found`);
     }
     const labTests = await this.prisma.labTest.findMany({
-      where: { departmentId: department.id },
+      where: { departmentId: department.id, deletedAt: null },
       include: { department: true, template: true },
     });
     if (!labTests || labTests.length === 0) {
-      throw new NotFoundException('No lab tests found for this department');
+      return [];
     }
     return plainToInstance(LabTestResponseDto, labTests, {
       excludeExtraneousValues: true,
@@ -125,7 +96,9 @@ export class LabTestService {
   }
 
   async toggleLabTest(id: number): Promise<LabTestResponseDto> {
-    const labTest = await this.prisma.labTest.findUnique({ where: { id } });
+    const labTest = await this.prisma.labTest.findFirst({
+      where: { id, deletedAt: null },
+    });
     if (!labTest) {
       throw new NotFoundException('LabTest not found');
     }
@@ -138,5 +111,29 @@ export class LabTestService {
     return plainToInstance(LabTestResponseDto, updatedLabTest, {
       excludeExtraneousValues: true,
     });
+  }
+
+  async softDeleteLabTest(id: number): Promise<{ message: string }> {
+    const labTest = await this.prisma.labTest.findFirst({
+      where: { id, deletedAt: null },
+    });
+    if (!labTest) {
+      throw new NotFoundException('LabTest not found');
+    }
+    await this.prisma.labTest.update({
+      where: { id },
+      data: { deletedAt: new Date(), isActive: false },
+    });
+
+    return { message: 'Lab test deleted successfully' };
+  }
+
+  // Get active templates for dropdown
+  async getActiveTemplates() {
+    const templates = await this.prisma.labTestTemplate.findMany({
+      where: { isActive: true, deletedAt: null },
+      select: { id: true, name: true, version: true },
+    });
+    return templates;
   }
 }

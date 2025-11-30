@@ -344,12 +344,17 @@ async function main() {
     },
   ];
 
-  for (const drug of drugs) {
-    await prisma.drug.upsert({
-      where: { name: drug.name },
-      update: {},
-      create: drug,
+  // For drugs, we'll use createMany since drugs are not unique by name
+  // First check if any drugs exist, if not, seed them
+  const existingDrugsCount = await prisma.drug.count();
+  if (existingDrugsCount === 0) {
+    await prisma.drug.createMany({
+      data: drugs,
+      skipDuplicates: true,
     });
+    console.log(`Seeded ${drugs.length} drugs`);
+  } else {
+    console.log(`Drugs already exist (${existingDrugsCount} found), skipping drug seeding`);
   }
 
   // Seed Lab Test Templates

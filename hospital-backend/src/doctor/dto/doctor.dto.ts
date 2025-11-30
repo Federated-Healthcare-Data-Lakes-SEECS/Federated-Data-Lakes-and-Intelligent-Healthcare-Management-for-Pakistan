@@ -68,10 +68,21 @@ export class UpdateDoctorDto {
   lastName?: string;
 
   @IsOptional()
+  @IsEmail()
+  email?: string;
+
+  @IsOptional()
   @IsEnum(Gender)
   gender?: Gender;
 
+  @IsOptional()
+  @IsString()
+  cnic?: string;
+
   // ---------- Doctor Info ----------
+  @IsOptional()
+  @IsString()
+  licenseNumber?: string;
 
   @IsOptional()
   @IsString()
@@ -92,7 +103,7 @@ export class UpdateDoctorDto {
   departmentName?: string;
 }
 
-import { Expose, Transform } from 'class-transformer';
+import { Expose } from 'class-transformer';
 
 export class DoctorResponseDto {
   @Expose()
@@ -127,6 +138,9 @@ export class DoctorResponseDto {
 
   @Expose()
   departmentName: string;
+
+  @Expose()
+  isActive: boolean;
 
   @Expose()
   createdAt: Date;

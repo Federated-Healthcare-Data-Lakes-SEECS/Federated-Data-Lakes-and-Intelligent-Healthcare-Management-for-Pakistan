@@ -1,8 +1,7 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { RegisterLabTestTemplateDto, UpdateLabTestTemplateDto, LabTestTemplateResponseDto } from './dto';
+import { RegisterLabTestTemplateDto, LabTestTemplateResponseDto } from './dto';
 import { plainToInstance } from 'class-transformer';
-import { PrismaClientKnownRequestError } from '@prisma/client/runtime/library';
 
 @Injectable()
 export class LabTestTemplateService {
@@ -11,6 +10,21 @@ export class LabTestTemplateService {
     async registerLabTestTemplate(
         dto: RegisterLabTestTemplateDto,
     ): Promise<LabTestTemplateResponseDto> {
+        // Check for existing template with same name + version
+        const existingTemplate = await this.prisma.labTestTemplate.findFirst({
+            where: {
+                name: dto.name,
+                version: dto.version,
+                deletedAt: null,
+            },
+        });
+
+        if (existingTemplate) {
+            throw new ConflictException(
+                `A lab test template with name "${dto.name}" and version "${dto.version}" already exists. Please use a different name or version.`
+            );
+        }
+
         try {
             const template = await this.prisma.labTestTemplate.create({
                 data: {
@@ -18,40 +32,26 @@ export class LabTestTemplateService {
                     description: dto.description,
                     version: dto.version,
                     formStructure: dto.formStructure,
-                    isActive: dto.isActive,
+                    isActive: dto.isActive ?? true,
                 },
             });
             return plainToInstance(LabTestTemplateResponseDto, template, {
                 excludeExtraneousValues: true,
             });
         } catch (error) {
-            if (error instanceof PrismaClientKnownRequestError) {
-                if (error.code === 'P2002') {
-                    throw new Error('A lab test template with this name already exists.');
-                }
+            if (error.code === 'P2002') {
+                throw new ConflictException(
+                    `A lab test template with name "${dto.name}" and version "${dto.version}" already exists. Please use a different name or version.`
+                );
             }
             throw error;
         }
     }
 
-    async updateLabTestTemplate(id: number, dto: UpdateLabTestTemplateDto): Promise<LabTestTemplateResponseDto> {
-        const template = await this.prisma.labTestTemplate.update({
-            where: { id },
-            data: {
-                name: dto.name,
-                description: dto.description,
-                version: dto.version,
-                formStructure: dto.formStructure,
-                isActive: dto.isActive,
-            },
-        });
-        return plainToInstance(LabTestTemplateResponseDto, template, {
-            excludeExtraneousValues: true,
-        });
-    }
-
     async getLabTestTemplateById(id: number): Promise<LabTestTemplateResponseDto> {
-        const template = await this.prisma.labTestTemplate.findUnique({ where: { id } });
+        const template = await this.prisma.labTestTemplate.findFirst({
+            where: { id, deletedAt: null },
+        });
         if (!template) {
             throw new NotFoundException('Lab test template not found');
         }
@@ -61,11 +61,10 @@ export class LabTestTemplateService {
     }
 
     async getAllLabTestTemplates(): Promise<LabTestTemplateResponseDto[]> {
-        const templates = await this.prisma.labTestTemplate.findMany();
-        if (!templates) {
-            throw new NotFoundException('No lab test templates found');
-        }
-        if (templates.length === 0) {
+        const templates = await this.prisma.labTestTemplate.findMany({
+            where: { deletedAt: null },
+        });
+        if (!templates || templates.length === 0) {
             return [];
         }
         return plainToInstance(LabTestTemplateResponseDto, templates, {
@@ -74,7 +73,9 @@ export class LabTestTemplateService {
     }
 
     async toggleLabTestTemplate(id: number): Promise<LabTestTemplateResponseDto> {
-        const template = await this.prisma.labTestTemplate.findUnique({ where: { id } });
+        const template = await this.prisma.labTestTemplate.findFirst({
+            where: { id, deletedAt: null },
+        });
         if (!template) {
             throw new NotFoundException('Lab test template not found');
         }
@@ -85,5 +86,31 @@ export class LabTestTemplateService {
         return plainToInstance(LabTestTemplateResponseDto, updatedTemplate, {
             excludeExtraneousValues: true,
         });
+    }
+
+    async softDeleteLabTestTemplate(id: number): Promise<{ message: string }> {
+        const template = await this.prisma.labTestTemplate.findFirst({
+            where: { id, deletedAt: null },
+        });
+        if (!template) {
+            throw new NotFoundException('Lab test template not found');
+        }
+
+        // Soft delete the template and all related lab tests
+        await this.prisma.$transaction(async (prisma) => {
+            // Soft delete all lab tests using this template
+            await prisma.labTest.updateMany({
+                where: { templateId: id, deletedAt: null },
+                data: { deletedAt: new Date(), isActive: false },
+            });
+
+            // Soft delete the template
+            await prisma.labTestTemplate.update({
+                where: { id },
+                data: { deletedAt: new Date(), isActive: false },
+            });
+        });
+
+        return { message: 'Lab test template and related lab tests deleted successfully' };
     }
 }

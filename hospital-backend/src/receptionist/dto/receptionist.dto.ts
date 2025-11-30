@@ -50,6 +50,10 @@ export class UpdateReceptionistDto {
     lastName?: string;
 
     @IsOptional()
+    @IsEmail()
+    email?: string;
+
+    @IsOptional()
     @IsEnum(Gender)
     gender?: Gender;
 
@@ -83,6 +87,9 @@ export class ReceptionistResponseDto {
 
     @Expose()
     phoneNumber?: string;
+
+    @Expose()
+    isActive: boolean;
 
     @Expose()
     createdAt: Date;

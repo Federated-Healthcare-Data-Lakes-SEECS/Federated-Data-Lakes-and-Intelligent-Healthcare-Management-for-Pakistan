@@ -3,182 +3,145 @@ import {
   NotFoundException,
   BadRequestException,
   ForbiddenException,
+  Logger,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { CreateCheckupDto, CheckupResponseDto } from './dto';
+import { CreateCheckupDto, SaveDraftDto, CheckupResponseDto } from './dto';
+import { AudioProcessingService } from './audio-processing.service';
 
 @Injectable()
 export class CheckupService {
-  constructor(private prisma: PrismaService) {}
+  private readonly logger = new Logger(CheckupService.name);
 
-  async createCheckup(
-    dto: CreateCheckupDto,
+  constructor(
+    private prisma: PrismaService,
+    private audioProcessingService: AudioProcessingService,
+  ) {}
+
+  /**
+   * Save checkup as draft - does not complete appointment
+   * Can be called multiple times to update the draft
+   */
+  async saveDraft(
+    dto: SaveDraftDto,
     userId: number,
   ): Promise<CheckupResponseDto> {
-    // Verify doctor exists
-    const doctor = await this.prisma.doctor.findUnique({
-      where: { userId },
-    });
+    await this.verifyDoctorAccess(dto.appointmentId, userId);
 
-    if (!doctor) {
-      throw new NotFoundException('Doctor not found');
-    }
-
-    // Verify appointment exists and belongs to this doctor
-    const appointment = await this.prisma.appointment.findUnique({
-      where: { id: dto.appointmentId },
+    // Check for existing checkup
+    const existingCheckup = await this.prisma.checkup.findUnique({
+      where: { appointmentId: dto.appointmentId },
       include: {
-        slot: {
-          include: {
-            schedule: true,
-          },
-        },
-        onlineAppointment: true,
-        walkinAppointment: true,
+        prescription: true,
+        checkupTestRecommendation: true,
       },
     });
 
-    if (!appointment) {
-      throw new NotFoundException('Appointment not found');
-    }
-
-    if (appointment.slot.schedule.doctorId !== doctor.id) {
-      throw new ForbiddenException(
-        'You can only create checkups for your own appointments',
-      );
-    }
-
-    // Check if appointment is already completed
-    const isOnline = !!appointment.onlineAppointment;
-    const appointmentStatus = isOnline
-      ? appointment.onlineAppointment?.status
-      : appointment.walkinAppointment?.status;
-
-    if (appointmentStatus === 'COMPLETED') {
+    if (existingCheckup && !existingCheckup.isDraft) {
       throw new BadRequestException(
-        'Cannot create checkup - appointment is already completed',
+        'Cannot save draft - checkup is already submitted',
       );
     }
 
-    // Check if checkup already exists for this appointment
+    if (existingCheckup) {
+      // Update existing draft
+      return this.updateDraft(existingCheckup, dto, userId);
+    }
+
+    // Create new draft
+    return this.createDraft(dto, userId);
+  }
+
+  /**
+   * Submit checkup with optional audio - completes the appointment
+   */
+  async submitCheckup(
+    dto: CreateCheckupDto,
+    audioBuffer: Buffer | null,
+    audioMimeType: string | null,
+    userId: number,
+  ): Promise<CheckupResponseDto> {
+    await this.verifyDoctorAccess(dto.appointmentId, userId);
+
+    // Check for existing checkup
     const existingCheckup = await this.prisma.checkup.findUnique({
       where: { appointmentId: dto.appointmentId },
     });
 
-    if (existingCheckup) {
+    if (existingCheckup && !existingCheckup.isDraft) {
       throw new BadRequestException(
-        'Checkup already exists for this appointment',
+        'Checkup already submitted for this appointment',
+      );
+    }
+
+    // Validate required fields for submission
+    if (!dto.symptoms || !dto.diagnosis) {
+      throw new BadRequestException(
+        'Symptoms and diagnosis are required for submission',
       );
     }
 
     // Validate drugs exist
-    if (dto.medications.length > 0) {
+    if (dto.medications && dto.medications.length > 0) {
       const drugIds = dto.medications.map((m) => m.drugId);
       const drugs = await this.prisma.drug.findMany({
         where: { id: { in: drugIds }, isActive: true },
       });
-
       if (drugs.length !== drugIds.length) {
         throw new BadRequestException('One or more drugs not found or inactive');
       }
     }
 
     // Validate lab tests exist
-    if (dto.recommendedLabTestIds.length > 0) {
+    if (dto.recommendedLabTestIds && dto.recommendedLabTestIds.length > 0) {
       const labTests = await this.prisma.labTest.findMany({
         where: { id: { in: dto.recommendedLabTestIds }, isActive: true },
       });
-
       if (labTests.length !== dto.recommendedLabTestIds.length) {
-        throw new BadRequestException(
-          'One or more lab tests not found or inactive',
-        );
+        throw new BadRequestException('One or more lab tests not found or inactive');
       }
     }
 
-    // Create checkup with all related data in a transaction
-    const checkup = await this.prisma.$transaction(async (prisma) => {
-      // Create prescription
-      const prescription = await prisma.prescription.create({
-        data: {
-          additionalMedications: dto.additionalMedications,
-        },
-      });
+    let checkupId: number;
 
-      // Create medications
-      if (dto.medications.length > 0) {
-        await prisma.medication.createMany({
-          data: dto.medications.map((med) => ({
-            drugId: med.drugId,
-            prescriptionId: prescription.id,
-            dosePerIntake: med.dosePerIntake,
-            timesPerDay: med.timesPerDay,
-            totalDays: med.totalDays,
-            instructions: med.instructions,
-          })),
-        });
-      }
+    if (existingCheckup) {
+      // Update draft and mark as submitted
+      checkupId = await this.finalizeDraft(existingCheckup.id, dto);
+    } else {
+      // Create new checkup as submitted
+      checkupId = await this.createSubmittedCheckup(dto);
+    }
 
-      // Create test recommendation
-      const testRecommendation = await prisma.checkupTestRecommendation.create({
-        data: {
-          additionalTests: dto.additionalTests,
-        },
-      });
+    // Save audio if provided
+    if (audioBuffer && audioMimeType) {
+      await this.saveAudio(checkupId, audioBuffer, audioMimeType);
+    }
 
-      // Create recommended lab tests
-      if (dto.recommendedLabTestIds.length > 0) {
-        await prisma.recommendedLabTest.createMany({
-          data: dto.recommendedLabTestIds.map((labTestId) => ({
-            testRecommendationId: testRecommendation.id,
-            labTestId,
-          })),
-        });
-      }
+    // Mark appointment as completed
+    await this.completeAppointment(dto.appointmentId);
 
-      // Create checkup
-      const newCheckup = await prisma.checkup.create({
-        data: {
-          appointmentId: dto.appointmentId,
-          bloodPressure: dto.bloodPressure,
-          temperature: dto.temperature,
-          heartRate: dto.heartRate,
-          bloodSugar: dto.bloodSugar,
-          symptoms: dto.symptoms,
-          diagnosis: dto.diagnosis,
-          notes: dto.notes,
-          prescriptionId: prescription.id,
-          checkupTestRecommendationId: testRecommendation.id,
-        },
-      });
+    return this.getCheckupById(checkupId, userId);
+  }
 
-      // Mark appointment as COMPLETED
-      // Check if it's an online or walk-in appointment and update accordingly
-      const appointmentWithType = await prisma.appointment.findUnique({
-        where: { id: dto.appointmentId },
-        include: {
-          onlineAppointment: true,
-          walkinAppointment: true,
-        },
-      });
+  /**
+   * Get checkup for an appointment (returns draft or completed)
+   */
+  async getCheckupByAppointmentId(
+    appointmentId: number,
+    userId: number,
+  ): Promise<CheckupResponseDto | null> {
+    await this.verifyDoctorAccess(appointmentId, userId);
 
-      if (appointmentWithType?.onlineAppointment) {
-        await prisma.onlineAppointment.update({
-          where: { appointmentId: dto.appointmentId },
-          data: { status: 'COMPLETED' },
-        });
-      } else if (appointmentWithType?.walkinAppointment) {
-        await prisma.walkinAppointment.update({
-          where: { appointmentId: dto.appointmentId },
-          data: { status: 'COMPLETED' },
-        });
-      }
-
-      return newCheckup;
+    const checkup = await this.prisma.checkup.findUnique({
+      where: { appointmentId },
+      include: this.getCheckupInclude(),
     });
 
-    // Return full checkup details
-    return this.getCheckupById(checkup.id, userId);
+    if (!checkup) {
+      return null;
+    }
+
+    return this.transformToCheckupResponse(checkup);
   }
 
   async getCheckupHistory(userId: number): Promise<CheckupResponseDto[]> {
@@ -192,6 +155,7 @@ export class CheckupService {
 
     const checkups = await this.prisma.checkup.findMany({
       where: {
+        isDraft: false, // Only show submitted checkups in history
         appointment: {
           slot: {
             schedule: {
@@ -200,36 +164,7 @@ export class CheckupService {
           },
         },
       },
-      include: {
-        appointment: {
-          include: {
-            slot: true,
-            patient: {
-              include: {
-                user: true,
-              },
-            },
-          },
-        },
-        prescription: {
-          include: {
-            medications: {
-              include: {
-                drug: true,
-              },
-            },
-          },
-        },
-        checkupTestRecommendation: {
-          include: {
-            recommendedLabTests: {
-              include: {
-                labTest: true,
-              },
-            },
-          },
-        },
-      },
+      include: this.getCheckupInclude(),
       orderBy: {
         createdAt: 'desc',
       },
@@ -252,43 +187,14 @@ export class CheckupService {
 
     const checkup = await this.prisma.checkup.findUnique({
       where: { id },
-      include: {
-        appointment: {
-          include: {
-            slot: true,
-            patient: {
-              include: {
-                user: true,
-              },
-            },
-          },
-        },
-        prescription: {
-          include: {
-            medications: {
-              include: {
-                drug: true,
-              },
-            },
-          },
-        },
-        checkupTestRecommendation: {
-          include: {
-            recommendedLabTests: {
-              include: {
-                labTest: true,
-              },
-            },
-          },
-        },
-      },
+      include: this.getCheckupInclude(),
     });
 
     if (!checkup) {
       throw new NotFoundException('Checkup not found');
     }
 
-    // Verify this checkup belongs to the requesting doctor
+    // Verify ownership
     const appointment = await this.prisma.appointment.findUnique({
       where: { id: checkup.appointmentId },
       include: {
@@ -309,6 +215,426 @@ export class CheckupService {
     return this.transformToCheckupResponse(checkup);
   }
 
+  // Legacy method for backward compatibility
+  async createCheckup(
+    dto: CreateCheckupDto,
+    userId: number,
+  ): Promise<CheckupResponseDto> {
+    return this.submitCheckup(dto, null, null, userId);
+  }
+
+  // ==================== PRIVATE METHODS ====================
+
+  private async verifyDoctorAccess(
+    appointmentId: number,
+    userId: number,
+  ): Promise<{ doctorId: number }> {
+    const doctor = await this.prisma.doctor.findUnique({
+      where: { userId },
+    });
+
+    if (!doctor) {
+      throw new NotFoundException('Doctor not found');
+    }
+
+    const appointment = await this.prisma.appointment.findUnique({
+      where: { id: appointmentId },
+      include: {
+        slot: {
+          include: {
+            schedule: true,
+          },
+        },
+        onlineAppointment: true,
+        walkinAppointment: true,
+      },
+    });
+
+    if (!appointment) {
+      throw new NotFoundException('Appointment not found');
+    }
+
+    if (appointment.slot.schedule.doctorId !== doctor.id) {
+      throw new ForbiddenException(
+        'You can only manage checkups for your own appointments',
+      );
+    }
+
+    // Check if appointment is already completed
+    const isOnline = !!appointment.onlineAppointment;
+    const appointmentStatus = isOnline
+      ? appointment.onlineAppointment?.status
+      : appointment.walkinAppointment?.status;
+
+    if (appointmentStatus === 'COMPLETED') {
+      throw new BadRequestException('Appointment is already completed');
+    }
+
+    return { doctorId: doctor.id };
+  }
+
+  private async createDraft(
+    dto: SaveDraftDto,
+    userId: number,
+  ): Promise<CheckupResponseDto> {
+    const checkup = await this.prisma.$transaction(async (prisma) => {
+      // Create prescription
+      const prescription = await prisma.prescription.create({
+        data: {
+          additionalMedications: dto.additionalMedications,
+        },
+      });
+
+      // Create medications if any
+      if (dto.medications && dto.medications.length > 0) {
+        await prisma.medication.createMany({
+          data: dto.medications.map((med) => ({
+            drugId: med.drugId,
+            prescriptionId: prescription.id,
+            dosePerIntake: med.dosePerIntake,
+            timesPerDay: med.timesPerDay,
+            totalDays: med.totalDays,
+            instructions: med.instructions,
+          })),
+        });
+      }
+
+      // Create test recommendation
+      const testRecommendation = await prisma.checkupTestRecommendation.create({
+        data: {
+          additionalTests: dto.additionalTests,
+        },
+      });
+
+      // Create recommended lab tests if any
+      if (dto.recommendedLabTestIds && dto.recommendedLabTestIds.length > 0) {
+        await prisma.recommendedLabTest.createMany({
+          data: dto.recommendedLabTestIds.map((labTestId) => ({
+            testRecommendationId: testRecommendation.id,
+            labTestId,
+          })),
+        });
+      }
+
+      // Create draft checkup
+      return prisma.checkup.create({
+        data: {
+          appointmentId: dto.appointmentId,
+          bloodPressure: dto.bloodPressure,
+          temperature: dto.temperature,
+          heartRate: dto.heartRate,
+          bloodSugar: dto.bloodSugar,
+          symptoms: dto.symptoms || '',
+          diagnosis: dto.diagnosis || '',
+          notes: dto.notes,
+          isDraft: true,
+          prescriptionId: prescription.id,
+          checkupTestRecommendationId: testRecommendation.id,
+        },
+      });
+    });
+
+    return this.getCheckupById(checkup.id, userId);
+  }
+
+  private async updateDraft(
+    existingCheckup: { id: number; prescriptionId: number; checkupTestRecommendationId: number },
+    dto: SaveDraftDto,
+    userId: number,
+  ): Promise<CheckupResponseDto> {
+    await this.prisma.$transaction(async (prisma) => {
+      // Update checkup fields
+      await prisma.checkup.update({
+        where: { id: existingCheckup.id },
+        data: {
+          bloodPressure: dto.bloodPressure,
+          temperature: dto.temperature,
+          heartRate: dto.heartRate,
+          bloodSugar: dto.bloodSugar,
+          symptoms: dto.symptoms || '',
+          diagnosis: dto.diagnosis || '',
+          notes: dto.notes,
+        },
+      });
+
+      // Update prescription
+      await prisma.prescription.update({
+        where: { id: existingCheckup.prescriptionId },
+        data: {
+          additionalMedications: dto.additionalMedications,
+        },
+      });
+
+      // Delete existing medications and recreate
+      await prisma.medication.deleteMany({
+        where: { prescriptionId: existingCheckup.prescriptionId },
+      });
+
+      if (dto.medications && dto.medications.length > 0) {
+        await prisma.medication.createMany({
+          data: dto.medications.map((med) => ({
+            drugId: med.drugId,
+            prescriptionId: existingCheckup.prescriptionId,
+            dosePerIntake: med.dosePerIntake,
+            timesPerDay: med.timesPerDay,
+            totalDays: med.totalDays,
+            instructions: med.instructions,
+          })),
+        });
+      }
+
+      // Update test recommendation
+      await prisma.checkupTestRecommendation.update({
+        where: { id: existingCheckup.checkupTestRecommendationId },
+        data: {
+          additionalTests: dto.additionalTests,
+        },
+      });
+
+      // Delete existing recommended tests and recreate
+      await prisma.recommendedLabTest.deleteMany({
+        where: { testRecommendationId: existingCheckup.checkupTestRecommendationId },
+      });
+
+      if (dto.recommendedLabTestIds && dto.recommendedLabTestIds.length > 0) {
+        await prisma.recommendedLabTest.createMany({
+          data: dto.recommendedLabTestIds.map((labTestId) => ({
+            testRecommendationId: existingCheckup.checkupTestRecommendationId,
+            labTestId,
+          })),
+        });
+      }
+    });
+
+    return this.getCheckupById(existingCheckup.id, userId);
+  }
+
+  private async createSubmittedCheckup(dto: CreateCheckupDto): Promise<number> {
+    const checkup = await this.prisma.$transaction(async (prisma) => {
+      // Create prescription
+      const prescription = await prisma.prescription.create({
+        data: {
+          additionalMedications: dto.additionalMedications,
+        },
+      });
+
+      // Create medications
+      if (dto.medications && dto.medications.length > 0) {
+        await prisma.medication.createMany({
+          data: dto.medications.map((med) => ({
+            drugId: med.drugId,
+            prescriptionId: prescription.id,
+            dosePerIntake: med.dosePerIntake,
+            timesPerDay: med.timesPerDay,
+            totalDays: med.totalDays,
+            instructions: med.instructions,
+          })),
+        });
+      }
+
+      // Create test recommendation
+      const testRecommendation = await prisma.checkupTestRecommendation.create({
+        data: {
+          additionalTests: dto.additionalTests,
+        },
+      });
+
+      // Create recommended lab tests
+      if (dto.recommendedLabTestIds && dto.recommendedLabTestIds.length > 0) {
+        await prisma.recommendedLabTest.createMany({
+          data: dto.recommendedLabTestIds.map((labTestId) => ({
+            testRecommendationId: testRecommendation.id,
+            labTestId,
+          })),
+        });
+      }
+
+      // Create submitted checkup
+      return prisma.checkup.create({
+        data: {
+          appointmentId: dto.appointmentId,
+          bloodPressure: dto.bloodPressure,
+          temperature: dto.temperature,
+          heartRate: dto.heartRate,
+          bloodSugar: dto.bloodSugar,
+          symptoms: dto.symptoms,
+          diagnosis: dto.diagnosis,
+          notes: dto.notes,
+          isDraft: false,
+          prescriptionId: prescription.id,
+          checkupTestRecommendationId: testRecommendation.id,
+        },
+      });
+    });
+
+    return checkup.id;
+  }
+
+  private async finalizeDraft(
+    checkupId: number,
+    dto: CreateCheckupDto,
+  ): Promise<number> {
+    const existingCheckup = await this.prisma.checkup.findUnique({
+      where: { id: checkupId },
+      include: {
+        prescription: true,
+        checkupTestRecommendation: true,
+      },
+    });
+
+    if (!existingCheckup) {
+      throw new NotFoundException('Checkup not found');
+    }
+
+    await this.prisma.$transaction(async (prisma) => {
+      // Update checkup fields and mark as submitted
+      await prisma.checkup.update({
+        where: { id: checkupId },
+        data: {
+          bloodPressure: dto.bloodPressure,
+          temperature: dto.temperature,
+          heartRate: dto.heartRate,
+          bloodSugar: dto.bloodSugar,
+          symptoms: dto.symptoms,
+          diagnosis: dto.diagnosis,
+          notes: dto.notes,
+          isDraft: false,
+        },
+      });
+
+      // Update prescription
+      await prisma.prescription.update({
+        where: { id: existingCheckup.prescriptionId },
+        data: {
+          additionalMedications: dto.additionalMedications,
+        },
+      });
+
+      // Delete and recreate medications
+      await prisma.medication.deleteMany({
+        where: { prescriptionId: existingCheckup.prescriptionId },
+      });
+
+      if (dto.medications && dto.medications.length > 0) {
+        await prisma.medication.createMany({
+          data: dto.medications.map((med) => ({
+            drugId: med.drugId,
+            prescriptionId: existingCheckup.prescriptionId,
+            dosePerIntake: med.dosePerIntake,
+            timesPerDay: med.timesPerDay,
+            totalDays: med.totalDays,
+            instructions: med.instructions,
+          })),
+        });
+      }
+
+      // Update test recommendation
+      await prisma.checkupTestRecommendation.update({
+        where: { id: existingCheckup.checkupTestRecommendationId },
+        data: {
+          additionalTests: dto.additionalTests,
+        },
+      });
+
+      // Delete and recreate recommended tests
+      await prisma.recommendedLabTest.deleteMany({
+        where: { testRecommendationId: existingCheckup.checkupTestRecommendationId },
+      });
+
+      if (dto.recommendedLabTestIds && dto.recommendedLabTestIds.length > 0) {
+        await prisma.recommendedLabTest.createMany({
+          data: dto.recommendedLabTestIds.map((labTestId) => ({
+            testRecommendationId: existingCheckup.checkupTestRecommendationId,
+            labTestId,
+          })),
+        });
+      }
+    });
+
+    return checkupId;
+  }
+
+  private async saveAudio(
+    checkupId: number,
+    audioBuffer: Buffer,
+    mimeType: string,
+  ): Promise<void> {
+    const audioRecord = await this.prisma.checkupAudio.create({
+      data: {
+        checkupId,
+        audioData: audioBuffer,
+        mimeType,
+        fileSize: audioBuffer.length,
+        processingStatus: 'PENDING',
+      },
+    });
+
+    // Trigger async processing - fire and forget
+    void this.audioProcessingService.processAudioAsync(audioRecord.id);
+    this.logger.log(`Audio saved for checkup ${checkupId}, processing started`);
+  }
+
+  private async completeAppointment(appointmentId: number): Promise<void> {
+    const appointment = await this.prisma.appointment.findUnique({
+      where: { id: appointmentId },
+      include: {
+        onlineAppointment: true,
+        walkinAppointment: true,
+      },
+    });
+
+    if (appointment?.onlineAppointment) {
+      await this.prisma.onlineAppointment.update({
+        where: { appointmentId },
+        data: { status: 'COMPLETED' },
+      });
+    } else if (appointment?.walkinAppointment) {
+      await this.prisma.walkinAppointment.update({
+        where: { appointmentId },
+        data: { status: 'COMPLETED' },
+      });
+    }
+  }
+
+  private getCheckupInclude() {
+    return {
+      appointment: {
+        include: {
+          slot: true,
+          patient: {
+            include: {
+              user: true,
+            },
+          },
+        },
+      },
+      prescription: {
+        include: {
+          medications: {
+            include: {
+              drug: true,
+            },
+          },
+        },
+      },
+      checkupTestRecommendation: {
+        include: {
+          recommendedLabTests: {
+            include: {
+              labTest: true,
+            },
+          },
+        },
+      },
+      audio: {
+        select: {
+          id: true,
+          processingStatus: true,
+        },
+      },
+    };
+  }
+
   private transformToCheckupResponse(checkup: any): CheckupResponseDto {
     return {
       id: checkup.id,
@@ -320,6 +646,9 @@ export class CheckupService {
       symptoms: checkup.symptoms,
       diagnosis: checkup.diagnosis,
       notes: checkup.notes,
+      insights: checkup.insights,
+      isDraft: checkup.isDraft,
+      hasAudio: !!checkup.audio,
       prescription: {
         id: checkup.prescription.id,
         additionalMedications: checkup.prescription.additionalMedications,

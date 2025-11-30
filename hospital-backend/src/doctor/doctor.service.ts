@@ -156,6 +156,36 @@ export class DoctorService {
       departmentId = department.id;
     }
 
+    // Check for email uniqueness if being updated
+    if (dto.email && dto.email !== existingDoctor.user.email) {
+      const existingEmail = await this.prisma.user.findFirst({
+        where: { 
+          email: dto.email,
+          id: { not: existingDoctor.userId },
+        },
+      });
+      if (existingEmail) {
+        throw new ConflictException(
+          `Email "${dto.email}" is already registered to another user.`,
+        );
+      }
+    }
+
+    // Check for license number uniqueness if being updated
+    if (dto.licenseNumber && dto.licenseNumber !== existingDoctor.licenseNumber) {
+      const existingLicense = await this.prisma.doctor.findFirst({
+        where: { 
+          licenseNumber: dto.licenseNumber,
+          id: { not: id },
+        },
+      });
+      if (existingLicense) {
+        throw new ConflictException(
+          `License number "${dto.licenseNumber}" is already assigned to another doctor.`,
+        );
+      }
+    }
+
     try {
       // Use transaction for atomic updates
       const result = await this.prisma.$transaction(async (prisma) => {
@@ -164,6 +194,8 @@ export class DoctorService {
         if (dto.firstName) userUpdateData.firstName = dto.firstName.trim();
         if (dto.lastName) userUpdateData.lastName = dto.lastName.trim();
         if (dto.gender) userUpdateData.gender = dto.gender;
+        if (dto.email) userUpdateData.email = dto.email.trim();
+        if (dto.cnic) userUpdateData.cnic = dto.cnic.trim();
 
         // Update user if any user-related fields exist
         if (Object.keys(userUpdateData).length > 0) {
@@ -178,6 +210,9 @@ export class DoctorService {
           departmentId: departmentId,
         };
 
+        if (dto.licenseNumber !== undefined) {
+          doctorUpdateData.licenseNumber = dto.licenseNumber?.trim();
+        }
         if (dto.specialization !== undefined) {
           doctorUpdateData.specialization = dto.specialization?.trim();
         }
@@ -202,10 +237,63 @@ export class DoctorService {
       return this.transformToDoctorResponse(result as DoctorInterface);
     } catch (error) {
       if (error.code === 'P2002') {
+        const target = error.meta?.target;
+        if (target?.includes('email')) {
+          throw new ConflictException('This email is already registered to another user.');
+        }
+        if (target?.includes('license_number')) {
+          throw new ConflictException('This license number is already assigned to another doctor.');
+        }
         throw new ConflictException('Update conflicts with existing data');
       }
       throw error;
     }
+  }
+
+  async activateDoctor(id: number): Promise<DoctorResponseDto> {
+    const doctor = await this.prisma.doctor.findUnique({
+      where: { id },
+      include: { user: true, department: true },
+    });
+
+    if (!doctor) {
+      throw new NotFoundException(`Doctor with ID ${id} not found`);
+    }
+
+    await this.prisma.user.update({
+      where: { id: doctor.userId },
+      data: { isActive: true },
+    });
+
+    const updatedDoctor = await this.prisma.doctor.findUnique({
+      where: { id },
+      include: { user: true, department: true },
+    });
+
+    return this.transformToDoctorResponse(updatedDoctor as DoctorInterface);
+  }
+
+  async deactivateDoctor(id: number): Promise<DoctorResponseDto> {
+    const doctor = await this.prisma.doctor.findUnique({
+      where: { id },
+      include: { user: true, department: true },
+    });
+
+    if (!doctor) {
+      throw new NotFoundException(`Doctor with ID ${id} not found`);
+    }
+
+    await this.prisma.user.update({
+      where: { id: doctor.userId },
+      data: { isActive: false },
+    });
+
+    const updatedDoctor = await this.prisma.doctor.findUnique({
+      where: { id },
+      include: { user: true, department: true },
+    });
+
+    return this.transformToDoctorResponse(updatedDoctor as DoctorInterface);
   }
 
   async getAllDoctors(): Promise<DoctorResponseDto[]> {
@@ -700,6 +788,7 @@ export class DoctorService {
         experience: doctor.experience,
         qualification: doctor.qualification,
         departmentName: doctor.department.name,
+        isActive: doctor.user.isActive,
         createdAt: doctor.createdAt,
       },
       { excludeExtraneousValues: true },
@@ -717,6 +806,7 @@ interface DoctorInterface {
     email: string;
     gender: string;
     cnic: string | null;
+    isActive: boolean;
   };
   licenseNumber: string;
   specialization?: string;

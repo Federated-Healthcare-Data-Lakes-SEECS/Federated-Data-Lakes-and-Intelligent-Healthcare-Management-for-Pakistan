@@ -101,7 +101,140 @@ export class PatientService {
             ]
         });
 
-        return patients.map(patient => plainToInstance(PatientResponseDto, patient.user));
+        return patients.map(patient => plainToInstance(PatientResponseDto, {
+            id: patient.id,
+            firstName: patient.user.firstName,
+            lastName: patient.user.lastName,
+            email: patient.user.email,
+            gender: patient.user.gender,
+            cnic: patient.user.cnic,
+            isActive: patient.user.isActive,
+            dateOfBirth: patient.dateOfBirth,
+            bloodGroup: patient.bloodGroup,
+            medicalHistory: patient.medicalHistory,
+            familyHistory: patient.familyHistory,
+            allergies: patient.allergies,
+            address: patient.address,
+            phoneNumber: patient.phoneNumber,
+            emergencyContact: patient.emergencyContact,
+            onboardingDone: patient.onboardingDone,
+            createdAt: patient.user.createdAt,
+        }, { excludeExtraneousValues: true }));
+    }
+
+    async getPatientById(patientId: number) {
+        const patient = await this.prisma.patient.findUnique({
+            where: { id: patientId },
+            include: {
+                user: true,
+            },
+        });
+
+        if (!patient) {
+            throw new NotFoundException('Patient not found');
+        }
+
+        return plainToInstance(PatientResponseDto, {
+            id: patient.id,
+            firstName: patient.user.firstName,
+            lastName: patient.user.lastName,
+            email: patient.user.email,
+            gender: patient.user.gender,
+            cnic: patient.user.cnic,
+            isActive: patient.user.isActive,
+            dateOfBirth: patient.dateOfBirth,
+            bloodGroup: patient.bloodGroup,
+            medicalHistory: patient.medicalHistory,
+            familyHistory: patient.familyHistory,
+            allergies: patient.allergies,
+            address: patient.address,
+            phoneNumber: patient.phoneNumber,
+            emergencyContact: patient.emergencyContact,
+            onboardingDone: patient.onboardingDone,
+            createdAt: patient.user.createdAt,
+        }, { excludeExtraneousValues: true });
+    }
+
+    async activatePatient(id: number) {
+        const patient = await this.prisma.patient.findUnique({
+            where: { id },
+            include: { user: true },
+        });
+
+        if (!patient) {
+            throw new NotFoundException('Patient not found');
+        }
+
+        await this.prisma.user.update({
+            where: { id: patient.userId },
+            data: { isActive: true },
+        });
+
+        const updatedPatient = await this.prisma.patient.findUnique({
+            where: { id },
+            include: { user: true },
+        });
+
+        return plainToInstance(PatientResponseDto, {
+            id: updatedPatient!.id,
+            firstName: updatedPatient!.user.firstName,
+            lastName: updatedPatient!.user.lastName,
+            email: updatedPatient!.user.email,
+            gender: updatedPatient!.user.gender,
+            cnic: updatedPatient!.user.cnic,
+            isActive: updatedPatient!.user.isActive,
+            dateOfBirth: updatedPatient!.dateOfBirth,
+            bloodGroup: updatedPatient!.bloodGroup,
+            medicalHistory: updatedPatient!.medicalHistory,
+            familyHistory: updatedPatient!.familyHistory,
+            allergies: updatedPatient!.allergies,
+            address: updatedPatient!.address,
+            phoneNumber: updatedPatient!.phoneNumber,
+            emergencyContact: updatedPatient!.emergencyContact,
+            onboardingDone: updatedPatient!.onboardingDone,
+            createdAt: updatedPatient!.user.createdAt,
+        }, { excludeExtraneousValues: true });
+    }
+
+    async deactivatePatient(id: number) {
+        const patient = await this.prisma.patient.findUnique({
+            where: { id },
+            include: { user: true },
+        });
+
+        if (!patient) {
+            throw new NotFoundException('Patient not found');
+        }
+
+        await this.prisma.user.update({
+            where: { id: patient.userId },
+            data: { isActive: false },
+        });
+
+        const updatedPatient = await this.prisma.patient.findUnique({
+            where: { id },
+            include: { user: true },
+        });
+
+        return plainToInstance(PatientResponseDto, {
+            id: updatedPatient!.id,
+            firstName: updatedPatient!.user.firstName,
+            lastName: updatedPatient!.user.lastName,
+            email: updatedPatient!.user.email,
+            gender: updatedPatient!.user.gender,
+            cnic: updatedPatient!.user.cnic,
+            isActive: updatedPatient!.user.isActive,
+            dateOfBirth: updatedPatient!.dateOfBirth,
+            bloodGroup: updatedPatient!.bloodGroup,
+            medicalHistory: updatedPatient!.medicalHistory,
+            familyHistory: updatedPatient!.familyHistory,
+            allergies: updatedPatient!.allergies,
+            address: updatedPatient!.address,
+            phoneNumber: updatedPatient!.phoneNumber,
+            emergencyContact: updatedPatient!.emergencyContact,
+            onboardingDone: updatedPatient!.onboardingDone,
+            createdAt: updatedPatient!.user.createdAt,
+        }, { excludeExtraneousValues: true });
     }
 
     async getPatientProfile(userId: number) {

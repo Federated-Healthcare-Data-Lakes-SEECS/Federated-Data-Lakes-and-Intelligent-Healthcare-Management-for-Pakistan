@@ -4,6 +4,7 @@ import {
     Post,
     Body,
     Patch,
+    Param,
     UseGuards,
     Query,
 } from '@nestjs/common';
@@ -24,9 +25,9 @@ export class PatientController {
         private patientService: PatientService,
     ) {}
 
-    // Admin/Receptionist routes
+    // Receptionist-only routes (not admin)
     @UseGuards(JwtGuard, RolesGuard)
-    @Roles(UserRole.ADMIN, UserRole.RECEPTIONIST)
+    @Roles(UserRole.RECEPTIONIST)
     @Post('register')
     registerPatient(
         @Body() dto: RegisterPatientDto,
@@ -35,11 +36,34 @@ export class PatientController {
         return this.patientService.registerPatient(dto, creatorId);
     }
 
+    // Admin can only view patients
     @UseGuards(JwtGuard, RolesGuard)
     @Roles(UserRole.ADMIN, UserRole.RECEPTIONIST)
     @Get()
     getAllPatients(): Promise<PatientResponseDto[]> {
         return this.patientService.getAllPatients();
+    }
+
+    @UseGuards(JwtGuard, RolesGuard)
+    @Roles(UserRole.ADMIN, UserRole.RECEPTIONIST)
+    @Get(':id')
+    getPatientById(@Param('id') id: string): Promise<PatientResponseDto> {
+        return this.patientService.getPatientById(parseInt(id));
+    }
+
+    // Admin-only: activate/deactivate patients
+    @UseGuards(JwtGuard, RolesGuard)
+    @Roles(UserRole.ADMIN)
+    @Patch(':id/activate')
+    activatePatient(@Param('id') id: string): Promise<PatientResponseDto> {
+        return this.patientService.activatePatient(parseInt(id));
+    }
+
+    @UseGuards(JwtGuard, RolesGuard)
+    @Roles(UserRole.ADMIN)
+    @Patch(':id/deactivate')
+    deactivatePatient(@Param('id') id: string): Promise<PatientResponseDto> {
+        return this.patientService.deactivatePatient(parseInt(id));
     }
 
     // Patient-only routes

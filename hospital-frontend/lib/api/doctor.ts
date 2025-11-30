@@ -166,6 +166,73 @@ export interface CreateCheckupDto {
   additionalTests?: string;
 }
 
+export interface SaveDraftDto {
+  appointmentId: number;
+  diagnosis?: string;
+  symptoms?: string;
+  bloodPressure?: string;
+  temperature?: string;
+  heartRate?: string;
+  bloodSugar?: string;
+  notes?: string;
+  medications?: {
+    drugId: number;
+    dosePerIntake: string;
+    timesPerDay: number;
+    totalDays: number;
+    instructions?: string;
+  }[];
+  additionalMedications?: string;
+  recommendedLabTestIds?: number[];
+  additionalTests?: string;
+}
+
+export interface CheckupData {
+  id: number;
+  appointmentId: number;
+  bloodPressure?: string;
+  temperature?: string;
+  heartRate?: string;
+  bloodSugar?: string;
+  symptoms: string;
+  diagnosis: string;
+  notes?: string;
+  insights?: string;
+  isDraft: boolean;
+  hasAudio?: boolean;
+  prescription: {
+    id: number;
+    additionalMedications?: string;
+    medications: {
+      id: number;
+      drug: {
+        id: number;
+        name: string;
+        strength?: string;
+        dosageForm?: string;
+        formulaName?: string;
+      };
+      dosePerIntake: string;
+      timesPerDay: number;
+      totalDays: number;
+      instructions?: string;
+    }[];
+  };
+  checkupTestRecommendation: {
+    id: number;
+    additionalTests?: string;
+    recommendedLabTests: {
+      id: number;
+      labTest: {
+        id: number;
+        name: string;
+      };
+    }[];
+  };
+  createdAt: string;
+  updatedAt: string;
+}
+
 // ============================================================================
 // DOCTOR PROFILE & DASHBOARD APIs
 // ============================================================================
@@ -294,7 +361,74 @@ export async function toggleSlotBookability(slotId: number): Promise<any> {
 // ============================================================================
 
 /**
- * Create a new checkup
+ * Submit checkup with optional audio file
+ */
+export async function submitCheckup(data: CreateCheckupDto, audioBlob?: Blob | null): Promise<CheckupData> {
+  const formData = new FormData();
+  
+  // Add all checkup data fields
+  formData.append('appointmentId', String(data.appointmentId));
+  formData.append('symptoms', data.symptoms || '');
+  formData.append('diagnosis', data.diagnosis);
+  if (data.bloodPressure) formData.append('bloodPressure', data.bloodPressure);
+  if (data.temperature) formData.append('temperature', data.temperature);
+  if (data.heartRate) formData.append('heartRate', data.heartRate);
+  if (data.bloodSugar) formData.append('bloodSugar', data.bloodSugar);
+  if (data.notes) formData.append('notes', data.notes);
+  if (data.additionalMedications) formData.append('additionalMedications', data.additionalMedications);
+  if (data.additionalTests) formData.append('additionalTests', data.additionalTests);
+  
+  // Add medications as JSON string
+  if (data.medications) {
+    formData.append('medications', JSON.stringify(data.medications));
+  }
+  
+  // Add lab test IDs as JSON string
+  if (data.recommendedLabTestIds) {
+    formData.append('recommendedLabTestIds', JSON.stringify(data.recommendedLabTestIds));
+  }
+  
+  // Add audio file if provided
+  if (audioBlob) {
+    console.log(`[API] Adding audio to form: ${(audioBlob.size / 1024).toFixed(2)} KB, type: ${audioBlob.type}`);
+    formData.append('audio', audioBlob, 'recording.webm');
+  } else {
+    console.log('[API] No audio blob to attach');
+  }
+  
+  const response = await api.post("/checkups", formData, {
+    headers: {
+      'Content-Type': 'multipart/form-data',
+    },
+  });
+  return response.data;
+}
+
+/**
+ * Save checkup as draft (no audio, doesn't complete appointment)
+ */
+export async function saveDraft(data: SaveDraftDto): Promise<CheckupData> {
+  const response = await api.post("/checkups/draft", data);
+  return response.data;
+}
+
+/**
+ * Get checkup for a specific appointment (returns draft or completed)
+ */
+export async function getCheckupByAppointmentId(appointmentId: number): Promise<CheckupData | null> {
+  try {
+    const response = await api.get(`/checkups/appointment/${appointmentId}`);
+    return response.data;
+  } catch (error: any) {
+    if (error.response?.status === 404) {
+      return null;
+    }
+    throw error;
+  }
+}
+
+/**
+ * Create a new checkup (legacy - use submitCheckup instead)
  */
 export async function createCheckup(data: CreateCheckupDto): Promise<any> {
   const response = await api.post("/checkups", data);

@@ -24,8 +24,8 @@ import api from "@/lib/api"
 interface DrugDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
-  drug: Drug | null
   onSave: (drug: Drug) => void
+  onError?: (error: unknown) => void
 }
 
 const dosageForms = [
@@ -43,7 +43,7 @@ const dosageForms = [
   "Solution",
 ]
 
-export function DrugDialog({ open, onOpenChange, drug, onSave }: DrugDialogProps) {
+export function DrugDialog({ open, onOpenChange, onSave, onError }: DrugDialogProps) {
   const [formData, setFormData] = useState<DrugFormData>({
     name: "",
     formulaName: "",
@@ -58,31 +58,18 @@ export function DrugDialog({ open, onOpenChange, drug, onSave }: DrugDialogProps
 
   useEffect(() => {
     if (open) {
-      if (drug) {
-        setFormData({
-          name: drug.name,
-          formulaName: drug.formulaName,
-          chemicalFormula: drug.chemicalFormula,
-          strength: drug.strength,
-          dosageForm: drug.dosageForm,
-          description: drug.description,
-          supplier: drug.supplier,
-          isActive: drug.isActive,
-        })
-      } else {
-        setFormData({
-          name: "",
-          formulaName: "",
-          chemicalFormula: "",
-          strength: "",
-          dosageForm: "",
-          description: "",
-          supplier: "",
-          isActive: true,
-        })
-      }
+      setFormData({
+        name: "",
+        formulaName: "",
+        chemicalFormula: "",
+        strength: "",
+        dosageForm: "",
+        description: "",
+        supplier: "",
+        isActive: true,
+      })
     }
-  }, [open, drug])
+  }, [open])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -121,17 +108,16 @@ export function DrugDialog({ open, onOpenChange, drug, onSave }: DrugDialogProps
     try {
       setSaving(true)
 
-      if (drug) {
-        const response = await api.patch(`/drugs/${drug.id}`, formData)
-        onSave(response.data)
-      } else {
-        const response = await api.post("/drugs/register", formData)
-        onSave(response.data)
-      }
+      const response = await api.post("/drugs/register", formData)
+      onSave(response.data)
 
       onOpenChange(false)
     } catch (error) {
-      toast.error(`Failed to ${drug ? "update" : "create"} drug`)
+      if (onError) {
+        onError(error)
+      } else {
+        toast.error("Failed to create drug")
+      }
     } finally {
       setSaving(false)
     }
@@ -141,9 +127,9 @@ export function DrugDialog({ open, onOpenChange, drug, onSave }: DrugDialogProps
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>{drug ? "Edit Drug" : "Add New Drug"}</DialogTitle>
+          <DialogTitle>Add New Drug</DialogTitle>
           <DialogDescription>
-            {drug ? "Update drug information and specifications" : "Add a new drug to the inventory"}
+            Add a new drug to the inventory
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit}>
@@ -230,21 +216,13 @@ export function DrugDialog({ open, onOpenChange, drug, onSave }: DrugDialogProps
                 required
               />
             </div>
-            <div className="flex items-center space-x-2">
-              <Switch
-                id="isActive"
-                checked={formData.isActive}
-                onCheckedChange={(checked) => setFormData({ ...formData, isActive: checked })}
-              />
-              <Label htmlFor="isActive">Active Drug</Label>
-            </div>
           </div>
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
             <Button type="submit" disabled={saving}>
-              {saving ? "Saving..." : drug ? "Update" : "Create"}
+              {saving ? "Saving..." : "Create"}
             </Button>
           </DialogFooter>
         </form>

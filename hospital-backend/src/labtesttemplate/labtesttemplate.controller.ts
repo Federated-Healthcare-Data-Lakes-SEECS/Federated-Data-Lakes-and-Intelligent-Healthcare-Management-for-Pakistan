@@ -1,24 +1,22 @@
-import { Controller, Post, Put, Get, Patch, Param, Body, ParseIntPipe } from '@nestjs/common';
+import { Controller, Post, Get, Patch, Delete, Param, Body, ParseIntPipe, UseGuards } from '@nestjs/common';
 import { LabTestTemplateService } from './labtesttemplate.service';
-import { RegisterLabTestTemplateDto, UpdateLabTestTemplateDto } from './dto/labtesttemplate.dto';
+import { RegisterLabTestTemplateDto } from './dto/labtesttemplate.dto';
+import { JwtGuard } from '../auth/guards';
+import { Roles, UserRole } from '../common/decorators/roles.decorator';
+import { RolesGuard } from '../common/guards/roles.guard';
 
+@UseGuards(JwtGuard)
 @Controller('labtesttemplate')
 export class LabTestTemplateController {
   constructor(private readonly labTestTemplateService: LabTestTemplateService) {}
 
   @Post()
+  @UseGuards(RolesGuard)
+  @Roles(UserRole.ADMIN)
   async registerLabTestTemplate(
     @Body() dto: RegisterLabTestTemplateDto,
   ) {
     return this.labTestTemplateService.registerLabTestTemplate(dto);
-  }
-
-  @Put(':id')
-  async updateLabTestTemplate(
-    @Param('id', ParseIntPipe) id: number,
-    @Body() dto: UpdateLabTestTemplateDto,
-  ) {
-    return this.labTestTemplateService.updateLabTestTemplate(id, dto);
   }
 
   @Get()
@@ -26,17 +24,28 @@ export class LabTestTemplateController {
     return this.labTestTemplateService.getAllLabTestTemplates();
   }
 
-    @Get(':id')
-    async getLabTestTemplateById(
-        @Param('id', ParseIntPipe) id: number,
-    ) {
-        return this.labTestTemplateService.getLabTestTemplateById(id);
-    }
+  @Get(':id')
+  async getLabTestTemplateById(
+    @Param('id', ParseIntPipe) id: number,
+  ) {
+    return this.labTestTemplateService.getLabTestTemplateById(id);
+  }
 
   @Patch(':id/toggle')
+  @UseGuards(RolesGuard)
+  @Roles(UserRole.ADMIN)
   async toggleLabTestTemplate(
     @Param('id', ParseIntPipe) id: number,
   ) {
     return this.labTestTemplateService.toggleLabTestTemplate(id);
+  }
+
+  @Delete(':id')
+  @UseGuards(RolesGuard)
+  @Roles(UserRole.ADMIN)
+  async softDeleteLabTestTemplate(
+    @Param('id', ParseIntPipe) id: number,
+  ) {
+    return this.labTestTemplateService.softDeleteLabTestTemplate(id);
   }
 }
