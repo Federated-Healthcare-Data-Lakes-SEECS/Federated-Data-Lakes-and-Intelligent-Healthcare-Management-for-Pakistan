@@ -3,10 +3,30 @@
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { FileText, Activity, Pill, TestTube, ChevronDown, ChevronUp, Loader2 } from "lucide-react";
+import { 
+  FileText, 
+  Activity, 
+  Pill, 
+  TestTube, 
+  ChevronDown, 
+  ChevronUp, 
+  Loader2,
+  Mic,
+  MicOff,
+  AlertCircle,
+  CheckCircle2,
+  Clock,
+  Brain,
+  FileSearch
+} from "lucide-react";
 import { getRecentCheckups, type Checkup } from "@/lib/api-patient";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 
 export default function PatientHistoryPage() {
   const [checkups, setCheckups] = useState<Checkup[]>([]);
@@ -73,11 +93,28 @@ export default function PatientHistoryPage() {
                     >
                       <div className="flex items-start justify-between">
                         <div className="space-y-1 text-left flex-1">
-                          <div className="flex items-center gap-3">
+                          <div className="flex items-center gap-3 flex-wrap">
                             <p className="font-semibold">
                               Dr. {checkup.doctor.firstName} {checkup.doctor.lastName}
                             </p>
                             <Badge variant="outline">{checkup.doctor.specialization}</Badge>
+                            {/* Audio Status Badge */}
+                            {checkup.hasAudio && checkup.audioInfo && (
+                              <Badge 
+                                variant={
+                                  checkup.audioInfo.status === 'COMPLETED' ? 'default' :
+                                  checkup.audioInfo.status === 'FAILED' ? 'destructive' :
+                                  'secondary'
+                                } 
+                                className="text-xs gap-1"
+                              >
+                                {checkup.audioInfo.status === 'PENDING' && <Clock className="w-3 h-3" />}
+                                {checkup.audioInfo.status === 'PROCESSING' && <Loader2 className="w-3 h-3 animate-spin" />}
+                                {checkup.audioInfo.status === 'COMPLETED' && <Mic className="w-3 h-3" />}
+                                {checkup.audioInfo.status === 'FAILED' && <AlertCircle className="w-3 h-3" />}
+                                {checkup.audioInfo.status === 'COMPLETED' ? 'AI Analyzed' : `Audio ${checkup.audioInfo.status.toLowerCase()}`}
+                              </Badge>
+                            )}
                           </div>
                           <p className="text-sm text-muted-foreground">
                             {new Date(checkup.createdAt).toLocaleDateString("en-US", {
@@ -241,6 +278,9 @@ export default function PatientHistoryPage() {
                       </div>
                     )}
 
+                    {/* Audio Analysis Status & Gap Analysis Section */}
+                    <AudioInsightsSection checkup={checkup} />
+
                     {/* Appointment Details */}
                     {checkup.appointmentId && (
                       <div className="pt-4 border-t">
@@ -259,6 +299,93 @@ export default function PatientHistoryPage() {
           )}
         </CardContent>
       </Card>
+    </div>
+  );
+}
+
+// Audio Insights Section for Patient View
+function AudioInsightsSection({ checkup }: { checkup: Checkup }) {
+  const [isGapOpen, setIsGapOpen] = useState(true);
+
+  // No audio and no gap analysis - nothing to show
+  if (!checkup.hasAudio && !checkup.gapAnalysis) {
+    return null;
+  }
+
+  return (
+    <div className="space-y-4">
+      {/* Audio Analysis Status */}
+      {checkup.hasAudio && (
+        <div className="space-y-2">
+          <h4 className="font-semibold flex items-center gap-2">
+            <Brain className="h-4 w-4" />
+            AI Analysis
+          </h4>
+          
+          {/* Processing states */}
+          {checkup.audioInfo?.status === 'PENDING' || checkup.audioInfo?.status === 'PROCESSING' ? (
+            <div className="flex items-center gap-3 p-3 border rounded bg-blue-50 dark:bg-blue-950/20 border-blue-200 dark:border-blue-800">
+              <Loader2 className="w-5 h-5 text-blue-600 dark:text-blue-400 animate-spin" />
+              <div>
+                <p className="text-sm font-medium">
+                  {checkup.audioInfo?.status === 'PROCESSING' ? 'Analyzing consultation...' : 'Waiting for analysis'}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  Your consultation recording is being analyzed by AI
+                </p>
+              </div>
+            </div>
+          ) : checkup.audioInfo?.status === 'FAILED' ? (
+            <div className="flex items-center gap-3 p-3 border rounded bg-red-50 dark:bg-red-950/20 border-red-200 dark:border-red-800">
+              <AlertCircle className="w-5 h-5 text-red-600 dark:text-red-400" />
+              <div>
+                <p className="text-sm font-medium">Analysis Unavailable</p>
+                <p className="text-xs text-muted-foreground">
+                  The AI analysis could not be completed for this consultation
+                </p>
+              </div>
+            </div>
+          ) : checkup.audioInfo?.status === 'COMPLETED' ? (
+            <div className="flex items-center gap-3 p-3 border rounded bg-green-50 dark:bg-green-950/20 border-green-200 dark:border-green-800">
+              <CheckCircle2 className="w-5 h-5 text-green-600 dark:text-green-400" />
+              <div>
+                <p className="text-sm font-medium">AI Analysis Complete</p>
+                <p className="text-xs text-muted-foreground">
+                  Your consultation was analyzed to extract key health insights
+                </p>
+              </div>
+            </div>
+          ) : null}
+        </div>
+      )}
+
+      {/* Gap Analysis - Important health information detected */}
+      {checkup.gapAnalysis && (
+        <Collapsible open={isGapOpen} onOpenChange={setIsGapOpen}>
+          <CollapsibleTrigger asChild>
+            <Button 
+              variant="ghost" 
+              className="w-full justify-between p-3 h-auto border rounded-lg bg-amber-50 dark:bg-amber-950/20 border-amber-200 dark:border-amber-800 hover:bg-amber-100 dark:hover:bg-amber-950/30"
+            >
+              <div className="flex items-center gap-2">
+                <FileSearch className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+                <span className="font-semibold text-amber-800 dark:text-amber-300">Additional Health Insights</span>
+              </div>
+              {isGapOpen ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+            </Button>
+          </CollapsibleTrigger>
+          <CollapsibleContent className="mt-2">
+            <div className="p-4 rounded-lg border bg-amber-50/50 dark:bg-amber-950/10 border-amber-200 dark:border-amber-800">
+              <p className="text-sm text-foreground leading-relaxed whitespace-pre-wrap">
+                {checkup.gapAnalysis}
+              </p>
+              <p className="text-xs text-muted-foreground mt-3 italic">
+                These insights were identified from your consultation recording and may provide additional context about your health.
+              </p>
+            </div>
+          </CollapsibleContent>
+        </Collapsible>
+      )}
     </div>
   );
 }

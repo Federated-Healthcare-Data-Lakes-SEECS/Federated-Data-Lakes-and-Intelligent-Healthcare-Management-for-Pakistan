@@ -81,24 +81,34 @@ export class CheckupService {
       );
     }
 
-    // Validate drugs exist
+    // Validate drugs exist - filter out any medications with undefined drugId
     if (dto.medications && dto.medications.length > 0) {
-      const drugIds = dto.medications.map((m) => m.drugId);
-      const drugs = await this.prisma.drug.findMany({
-        where: { id: { in: drugIds }, isActive: true },
-      });
-      if (drugs.length !== drugIds.length) {
-        throw new BadRequestException('One or more drugs not found or inactive');
+      const validMedications = dto.medications.filter((m) => m.drugId !== undefined && m.drugId !== null);
+      dto.medications = validMedications; // Update dto with only valid medications
+      
+      if (validMedications.length > 0) {
+        const drugIds = validMedications.map((m) => m.drugId);
+        const drugs = await this.prisma.drug.findMany({
+          where: { id: { in: drugIds }, isActive: true },
+        });
+        if (drugs.length !== drugIds.length) {
+          throw new BadRequestException('One or more drugs not found or inactive');
+        }
       }
     }
 
-    // Validate lab tests exist
+    // Validate lab tests exist - filter out any undefined values
     if (dto.recommendedLabTestIds && dto.recommendedLabTestIds.length > 0) {
-      const labTests = await this.prisma.labTest.findMany({
-        where: { id: { in: dto.recommendedLabTestIds }, isActive: true },
-      });
-      if (labTests.length !== dto.recommendedLabTestIds.length) {
-        throw new BadRequestException('One or more lab tests not found or inactive');
+      const validLabTestIds = dto.recommendedLabTestIds.filter((id) => id !== undefined && id !== null);
+      dto.recommendedLabTestIds = validLabTestIds; // Update dto with only valid IDs
+      
+      if (validLabTestIds.length > 0) {
+        const labTests = await this.prisma.labTest.findMany({
+          where: { id: { in: validLabTestIds }, isActive: true },
+        });
+        if (labTests.length !== validLabTestIds.length) {
+          throw new BadRequestException('One or more lab tests not found or inactive');
+        }
       }
     }
 
@@ -630,12 +640,26 @@ export class CheckupService {
         select: {
           id: true,
           processingStatus: true,
+          transcription: true,
+          extractedInfo: true,
+          processedAt: true,
+          errorMessage: true,
         },
       },
     };
   }
 
   private transformToCheckupResponse(checkup: any): CheckupResponseDto {
+    // Build audio info if audio exists
+    const audioInfo = checkup.audio ? {
+      id: checkup.audio.id,
+      status: checkup.audio.processingStatus,
+      transcription: checkup.audio.transcription,
+      extractedInfo: checkup.audio.extractedInfo,
+      processedAt: checkup.audio.processedAt,
+      errorMessage: checkup.audio.errorMessage,
+    } : undefined;
+
     return {
       id: checkup.id,
       appointmentId: checkup.appointmentId,
@@ -647,8 +671,10 @@ export class CheckupService {
       diagnosis: checkup.diagnosis,
       notes: checkup.notes,
       insights: checkup.insights,
+      gapAnalysis: checkup.gapAnalysis,
       isDraft: checkup.isDraft,
       hasAudio: !!checkup.audio,
+      audioInfo,
       prescription: {
         id: checkup.prescription.id,
         additionalMedications: checkup.prescription.additionalMedications,

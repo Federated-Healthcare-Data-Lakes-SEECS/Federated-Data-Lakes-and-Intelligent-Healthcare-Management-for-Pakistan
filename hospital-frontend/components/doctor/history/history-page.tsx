@@ -16,8 +16,23 @@ import {
   ChevronRight,
   ArrowLeft,
   FileText,
-  Lightbulb // added
+  Lightbulb,
+  Mic,
+  MicOff,
+  Loader2,
+  AlertCircle,
+  CheckCircle2,
+  Clock,
+  ChevronDown,
+  ChevronUp,
+  Brain,
+  FileSearch
 } from 'lucide-react';
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 
 export default function HistoryPage() {
   const [checkups, setCheckups] = useState<RecentCheckup[]>([]);
@@ -161,6 +176,23 @@ export default function HistoryPage() {
                             <FlaskConical className="w-3 h-3" />
                             {checkup.recommendedLabTests.length} Test
                             {checkup.recommendedLabTests.length > 1 ? "s" : ""}
+                          </Badge>
+                        )}
+                        {/* Audio Status Badge */}
+                        {checkup.hasAudio && checkup.audioInfo && (
+                          <Badge 
+                            variant={
+                              checkup.audioInfo.status === 'COMPLETED' ? 'default' :
+                              checkup.audioInfo.status === 'FAILED' ? 'destructive' :
+                              'secondary'
+                            } 
+                            className="text-xs gap-1"
+                          >
+                            {checkup.audioInfo.status === 'PENDING' && <Clock className="w-3 h-3" />}
+                            {checkup.audioInfo.status === 'PROCESSING' && <Loader2 className="w-3 h-3 animate-spin" />}
+                            {checkup.audioInfo.status === 'COMPLETED' && <Mic className="w-3 h-3" />}
+                            {checkup.audioInfo.status === 'FAILED' && <AlertCircle className="w-3 h-3" />}
+                            Audio {checkup.audioInfo.status.toLowerCase()}
                           </Badge>
                         )}
                       </div>
@@ -334,6 +366,18 @@ function CheckupDetails({ checkup, onBack }: { checkup: RecentCheckup; onBack: (
             </div>
           </div>
         </SectionCard>
+
+        {/* Audio Analysis Section */}
+        <AudioAnalysisSection checkup={checkup} />
+
+        {/* Gap Analysis Section */}
+        {checkup.gapAnalysis && (
+          <SectionCard icon={<FileSearch className="w-4 h-4" />} title="Gap Analysis">
+            <div className="p-4 rounded-lg border bg-amber-50/50 dark:bg-amber-950/20 border-amber-200 dark:border-amber-800">
+              <p className="text-sm text-foreground leading-relaxed whitespace-pre-wrap">{checkup.gapAnalysis}</p>
+            </div>
+          </SectionCard>
+        )}
       </div>
     </div>
   );
@@ -387,6 +431,214 @@ function InfoItem({ label, value }: { label: string; value: string }) {
       <p className="text-sm font-semibold text-foreground truncate" title={value}>
         {value}
       </p>
+    </div>
+  );
+}
+
+// Audio Analysis Section Component
+function AudioAnalysisSection({ checkup }: { checkup: RecentCheckup }) {
+  const [isTranscriptOpen, setIsTranscriptOpen] = useState(false);
+  const [isExtractedInfoOpen, setIsExtractedInfoOpen] = useState(true);
+
+  // No audio recorded
+  if (!checkup.hasAudio) {
+    return (
+      <SectionCard icon={<MicOff className="w-4 h-4" />} title="Audio Analysis">
+        <div className="flex items-center gap-3 p-4 rounded-lg border bg-muted/30">
+          <MicOff className="w-5 h-5 text-muted-foreground" />
+          <div>
+            <p className="text-sm font-medium text-foreground">No Audio Recording</p>
+            <p className="text-xs text-muted-foreground">This checkup was completed without audio recording</p>
+          </div>
+        </div>
+      </SectionCard>
+    );
+  }
+
+  const audioInfo = checkup.audioInfo;
+
+  // Audio is still processing
+  if (!audioInfo || audioInfo.status === 'PENDING' || audioInfo.status === 'PROCESSING') {
+    return (
+      <SectionCard icon={<Mic className="w-4 h-4" />} title="Audio Analysis">
+        <div className="flex items-center gap-3 p-4 rounded-lg border bg-blue-50 dark:bg-blue-950/20 border-blue-200 dark:border-blue-800">
+          <Loader2 className="w-5 h-5 text-blue-600 dark:text-blue-400 animate-spin" />
+          <div>
+            <p className="text-sm font-medium text-foreground">
+              {audioInfo?.status === 'PROCESSING' ? 'Processing Audio...' : 'Waiting to Process'}
+            </p>
+            <p className="text-xs text-muted-foreground">
+              AI analysis is in progress. This may take a few moments.
+            </p>
+          </div>
+        </div>
+      </SectionCard>
+    );
+  }
+
+  // Audio processing failed
+  if (audioInfo.status === 'FAILED') {
+    return (
+      <SectionCard icon={<AlertCircle className="w-4 h-4" />} title="Audio Analysis">
+        <div className="flex items-center gap-3 p-4 rounded-lg border bg-red-50 dark:bg-red-950/20 border-red-200 dark:border-red-800">
+          <AlertCircle className="w-5 h-5 text-red-600 dark:text-red-400" />
+          <div>
+            <p className="text-sm font-medium text-foreground">Processing Failed</p>
+            <p className="text-xs text-muted-foreground">
+              {audioInfo.errorMessage || 'An error occurred while processing the audio recording'}
+            </p>
+          </div>
+        </div>
+      </SectionCard>
+    );
+  }
+
+  // Audio processing completed
+  return (
+    <SectionCard icon={<Brain className="w-4 h-4" />} title="AI Audio Analysis">
+      <div className="space-y-4">
+        {/* Processing Status */}
+        <div className="flex items-center gap-2 text-sm">
+          <CheckCircle2 className="w-4 h-4 text-green-600 dark:text-green-400" />
+          <span className="text-muted-foreground">
+            Processed {audioInfo.processedAt ? new Date(audioInfo.processedAt).toLocaleString() : 'successfully'}
+          </span>
+        </div>
+
+        {/* Transcription - Collapsible */}
+        {audioInfo.transcription && (
+          <Collapsible open={isTranscriptOpen} onOpenChange={setIsTranscriptOpen}>
+            <CollapsibleTrigger asChild>
+              <Button variant="ghost" className="w-full justify-between p-3 h-auto border rounded-lg bg-muted/30 hover:bg-muted/50">
+                <div className="flex items-center gap-2">
+                  <FileText className="w-4 h-4" />
+                  <span className="font-medium">Transcription</span>
+                </div>
+                {isTranscriptOpen ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+              </Button>
+            </CollapsibleTrigger>
+            <CollapsibleContent className="mt-2">
+              <div className="p-4 rounded-lg border bg-muted/20">
+                <p className="text-sm text-foreground leading-relaxed whitespace-pre-wrap">
+                  {audioInfo.transcription}
+                </p>
+              </div>
+            </CollapsibleContent>
+          </Collapsible>
+        )}
+
+        {/* Extracted Clinical Information */}
+        {audioInfo.extractedInfo && Object.keys(audioInfo.extractedInfo).length > 0 && (
+          <Collapsible open={isExtractedInfoOpen} onOpenChange={setIsExtractedInfoOpen}>
+            <CollapsibleTrigger asChild>
+              <Button variant="ghost" className="w-full justify-between p-3 h-auto border rounded-lg bg-primary/5 hover:bg-primary/10 border-primary/20">
+                <div className="flex items-center gap-2">
+                  <Brain className="w-4 h-4 text-primary" />
+                  <span className="font-medium">Extracted Clinical Information</span>
+                </div>
+                {isExtractedInfoOpen ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+              </Button>
+            </CollapsibleTrigger>
+            <CollapsibleContent className="mt-2">
+              <ExtractedInfoDisplay data={audioInfo.extractedInfo} />
+            </CollapsibleContent>
+          </Collapsible>
+        )}
+      </div>
+    </SectionCard>
+  );
+}
+
+// Component to render extracted info in a clean, structured format
+function ExtractedInfoDisplay({ data }: { data: Record<string, any> }) {
+  const renderValue = (value: any, depth: number = 0): React.ReactNode => {
+    if (value === null || value === undefined) {
+      return <span className="text-muted-foreground italic">Not specified</span>;
+    }
+
+    if (typeof value === 'boolean') {
+      return (
+        <Badge variant={value ? 'default' : 'secondary'} className="text-xs">
+          {value ? 'Yes' : 'No'}
+        </Badge>
+      );
+    }
+
+    if (typeof value === 'string' || typeof value === 'number') {
+      return <span className="text-foreground">{String(value)}</span>;
+    }
+
+    if (Array.isArray(value)) {
+      if (value.length === 0) {
+        return <span className="text-muted-foreground italic">None</span>;
+      }
+      
+      // Check if it's an array of simple values
+      if (value.every(item => typeof item === 'string' || typeof item === 'number')) {
+        return (
+          <div className="flex flex-wrap gap-1.5">
+            {value.map((item, idx) => (
+              <Badge key={idx} variant="outline" className="text-xs">
+                {String(item)}
+              </Badge>
+            ))}
+          </div>
+        );
+      }
+
+      // Array of objects
+      return (
+        <div className="space-y-2 mt-1">
+          {value.map((item, idx) => (
+            <div key={idx} className="p-2 rounded border bg-muted/20 text-sm">
+              {typeof item === 'object' ? (
+                <ExtractedInfoDisplay data={item} />
+              ) : (
+                String(item)
+              )}
+            </div>
+          ))}
+        </div>
+      );
+    }
+
+    // Object
+    if (typeof value === 'object') {
+      return (
+        <div className={`${depth > 0 ? 'pl-3 border-l-2 border-muted' : ''}`}>
+          <ExtractedInfoDisplay data={value} />
+        </div>
+      );
+    }
+
+    return String(value);
+  };
+
+  const formatKey = (key: string): string => {
+    // Convert camelCase or snake_case to Title Case with spaces
+    return key
+      .replace(/_/g, ' ')
+      .replace(/([A-Z])/g, ' $1')
+      .replace(/^./, str => str.toUpperCase())
+      .trim();
+  };
+
+  return (
+    <div className="rounded-lg border bg-card">
+      <div className="divide-y">
+        {Object.entries(data).map(([key, value]) => (
+          <div key={key} className="p-3">
+            <div className="flex flex-col gap-1">
+              <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                {formatKey(key)}
+              </span>
+              <div className="text-sm">
+                {renderValue(value, 0)}
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

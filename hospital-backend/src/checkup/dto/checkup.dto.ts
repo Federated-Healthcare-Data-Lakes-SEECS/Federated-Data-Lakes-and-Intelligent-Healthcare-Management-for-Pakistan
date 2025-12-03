@@ -219,6 +219,16 @@ export class AppointmentResponseDto {
   patient: PatientResponseDto;
 }
 
+// Audio state for UI display
+export interface AudioInfoResponseDto {
+  id: number;
+  status: 'PENDING' | 'PROCESSING' | 'COMPLETED' | 'FAILED';
+  transcription?: string;
+  extractedInfo?: Record<string, any>; // JSON object with structured clinical data
+  processedAt?: Date;
+  errorMessage?: string;
+}
+
 export class CheckupResponseDto {
   id: number;
   appointmentId: number;
@@ -229,12 +239,14 @@ export class CheckupResponseDto {
   symptoms: string;
   diagnosis: string;
   notes?: string;
-  insights?: string; // AI-generated insights
+  insights?: string; // AI-generated insights (legacy)
+  gapAnalysis?: string; // Gap analysis from AI - additional details found in conversation
   isDraft: boolean;
   prescription: PrescriptionResponseDto;
   checkupTestRecommendation: CheckupTestRecommendationResponseDto;
   appointment: AppointmentResponseDto;
   hasAudio?: boolean; // Indicates if audio was recorded
+  audioInfo?: AudioInfoResponseDto; // Detailed audio processing info
   createdAt: Date;
   updatedAt: Date;
 }

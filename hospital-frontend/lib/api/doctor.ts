@@ -58,6 +58,15 @@ export interface UpcomingAppointment {
   createdAt: string;
 }
 
+export interface AudioInfo {
+  id: number;
+  status: 'PENDING' | 'PROCESSING' | 'COMPLETED' | 'FAILED';
+  transcription?: string;
+  extractedInfo?: Record<string, any>;
+  processedAt?: string;
+  errorMessage?: string;
+}
+
 export interface RecentCheckup {
   id: number;
   appointmentId: number;
@@ -68,10 +77,13 @@ export interface RecentCheckup {
   heartRate?: string;
   bloodSugar?: string;
   notes?: string;
+  gapAnalysis?: string; // Gap analysis from AI
   medications?: Medication[];
   additionalMedications?: string;
   recommendedLabTests?: { id: number; name: string }[];
   additionalTests?: string;
+  hasAudio?: boolean;
+  audioInfo?: AudioInfo;
   createdAt: string;
   appointment: {
     slot: {

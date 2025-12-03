@@ -501,6 +501,16 @@ export class PatientService {
                         },
                     },
                 },
+                audio: {
+                    select: {
+                        id: true,
+                        processingStatus: true,
+                        transcription: true,
+                        extractedInfo: true,
+                        processedAt: true,
+                        errorMessage: true,
+                    },
+                },
             },
             orderBy: {
                 createdAt: 'desc',
@@ -508,43 +518,58 @@ export class PatientService {
             take: limit,
         });
 
-        return checkups.map((checkup) => ({
-            id: checkup.id,
-            appointmentId: checkup.appointmentId,
-            createdAt: checkup.createdAt,
-            bloodPressure: checkup.bloodPressure,
-            temperature: checkup.temperature,
-            heartRate: checkup.heartRate,
-            bloodSugar: checkup.bloodSugar,
-            symptoms: checkup.symptoms,
-            diagnosis: checkup.diagnosis,
-            notes: checkup.notes,
-            additionalTests: checkup.checkupTestRecommendation.additionalTests,
-            doctor: {
-                firstName: checkup.appointment.slot.schedule.doctor.user.firstName,
-                lastName: checkup.appointment.slot.schedule.doctor.user.lastName,
-                specialization: checkup.appointment.slot.schedule.doctor.specialization,
-                departmentName: checkup.appointment.slot.schedule.doctor.department.name,
-            },
-            medications: checkup.prescription.medications.map((med) => ({
-                id: med.id,
-                drugId: med.drug.id,
-                dosePerIntake: med.dosePerIntake,
-                timesPerDay: med.timesPerDay,
-                totalDays: med.totalDays,
-                instructions: med.instructions,
-                drug: {
-                    id: med.drug.id,
-                    name: med.drug.name,
-                    description: med.drug.description,
+        return checkups.map((checkup) => {
+            // Build audio info if audio exists
+            const audioInfo = checkup.audio ? {
+                id: checkup.audio.id,
+                status: checkup.audio.processingStatus,
+                transcription: checkup.audio.transcription,
+                extractedInfo: checkup.audio.extractedInfo as Record<string, any> | null,
+                processedAt: checkup.audio.processedAt,
+                errorMessage: checkup.audio.errorMessage,
+            } : undefined;
+
+            return {
+                id: checkup.id,
+                appointmentId: checkup.appointmentId,
+                createdAt: checkup.createdAt,
+                bloodPressure: checkup.bloodPressure,
+                temperature: checkup.temperature,
+                heartRate: checkup.heartRate,
+                bloodSugar: checkup.bloodSugar,
+                symptoms: checkup.symptoms,
+                diagnosis: checkup.diagnosis,
+                notes: checkup.notes,
+                gapAnalysis: checkup.gapAnalysis,
+                additionalTests: checkup.checkupTestRecommendation.additionalTests,
+                hasAudio: !!checkup.audio,
+                audioInfo,
+                doctor: {
+                    firstName: checkup.appointment.slot.schedule.doctor.user.firstName,
+                    lastName: checkup.appointment.slot.schedule.doctor.user.lastName,
+                    specialization: checkup.appointment.slot.schedule.doctor.specialization,
+                    departmentName: checkup.appointment.slot.schedule.doctor.department.name,
                 },
-            })),
-            additionalMedications: checkup.prescription.additionalMedications,
-            recommendedLabTests: checkup.checkupTestRecommendation.recommendedLabTests.map((test) => ({
-                id: test.labTest.id,
-                name: test.labTest.name,
-                description: test.labTest.description,
-            })),
-        }));
+                medications: checkup.prescription.medications.map((med) => ({
+                    id: med.id,
+                    drugId: med.drug.id,
+                    dosePerIntake: med.dosePerIntake,
+                    timesPerDay: med.timesPerDay,
+                    totalDays: med.totalDays,
+                    instructions: med.instructions,
+                    drug: {
+                        id: med.drug.id,
+                        name: med.drug.name,
+                        description: med.drug.description,
+                    },
+                })),
+                additionalMedications: checkup.prescription.additionalMedications,
+                recommendedLabTests: checkup.checkupTestRecommendation.recommendedLabTests.map((test) => ({
+                    id: test.labTest.id,
+                    name: test.labTest.name,
+                    description: test.labTest.description,
+                })),
+            };
+        });
     }
 }

@@ -17,6 +17,7 @@ import { GetUser } from '../auth/decorators';
 import { JwtGuard } from '../auth/guards';
 import { CheckupService } from './checkup.service';
 import { AudioProcessingService } from './audio-processing.service';
+import { AudioProcessingJobService } from './audio-processing-job.service';
 import { CreateCheckupDto, SaveDraftDto } from './dto';
 import { Roles, UserRole } from '../common/decorators/roles.decorator';
 import { RolesGuard } from '../common/guards/roles.guard';
@@ -35,6 +36,7 @@ export class CheckupController {
   constructor(
     private checkupService: CheckupService,
     private audioProcessingService: AudioProcessingService,
+    private audioProcessingJobService: AudioProcessingJobService,
   ) {}
 
   /**
@@ -151,5 +153,33 @@ export class CheckupController {
     });
 
     return new StreamableFile(audio.audioData);
+  }
+}
+
+// ============================================================================
+// Admin controller for audio processing management
+// ============================================================================
+@UseGuards(JwtGuard, RolesGuard)
+@Roles(UserRole.ADMIN)
+@Controller('admin/audio-processing')
+export class AudioProcessingAdminController {
+  constructor(
+    private audioProcessingJobService: AudioProcessingJobService,
+  ) {}
+
+  /**
+   * Get audio processing statistics
+   */
+  @Get('stats')
+  getProcessingStats() {
+    return this.audioProcessingJobService.getProcessingStats();
+  }
+
+  /**
+   * Manually trigger processing for a specific audio record
+   */
+  @Post(':audioId/process')
+  triggerProcessing(@Param('audioId') audioId: string) {
+    return this.audioProcessingJobService.triggerProcessing(parseInt(audioId));
   }
 }

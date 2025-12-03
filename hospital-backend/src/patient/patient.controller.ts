@@ -25,48 +25,10 @@ export class PatientController {
         private patientService: PatientService,
     ) {}
 
-    // Receptionist-only routes (not admin)
-    @UseGuards(JwtGuard, RolesGuard)
-    @Roles(UserRole.RECEPTIONIST)
-    @Post('register')
-    registerPatient(
-        @Body() dto: RegisterPatientDto,
-        @GetUser('id') creatorId: number,
-    ): Promise<PatientResponseDto> {
-        return this.patientService.registerPatient(dto, creatorId);
-    }
+    // ============================================================
+    // PATIENT-ONLY ROUTES (must come BEFORE :id wildcard routes)
+    // ============================================================
 
-    // Admin can only view patients
-    @UseGuards(JwtGuard, RolesGuard)
-    @Roles(UserRole.ADMIN, UserRole.RECEPTIONIST)
-    @Get()
-    getAllPatients(): Promise<PatientResponseDto[]> {
-        return this.patientService.getAllPatients();
-    }
-
-    @UseGuards(JwtGuard, RolesGuard)
-    @Roles(UserRole.ADMIN, UserRole.RECEPTIONIST)
-    @Get(':id')
-    getPatientById(@Param('id') id: string): Promise<PatientResponseDto> {
-        return this.patientService.getPatientById(parseInt(id));
-    }
-
-    // Admin-only: activate/deactivate patients
-    @UseGuards(JwtGuard, RolesGuard)
-    @Roles(UserRole.ADMIN)
-    @Patch(':id/activate')
-    activatePatient(@Param('id') id: string): Promise<PatientResponseDto> {
-        return this.patientService.activatePatient(parseInt(id));
-    }
-
-    @UseGuards(JwtGuard, RolesGuard)
-    @Roles(UserRole.ADMIN)
-    @Patch(':id/deactivate')
-    deactivatePatient(@Param('id') id: string): Promise<PatientResponseDto> {
-        return this.patientService.deactivatePatient(parseInt(id));
-    }
-
-    // Patient-only routes
     @UseGuards(JwtGuard, RolesGuard)
     @Roles(UserRole.PATIENT)
     @Get('profile')
@@ -111,5 +73,53 @@ export class PatientController {
     ) {
         const limitNum = limit ? parseInt(limit) : 5;
         return this.patientService.getRecentCheckups(userId, limitNum);
+    }
+
+    // ============================================================
+    // RECEPTIONIST ROUTES
+    // ============================================================
+
+    @UseGuards(JwtGuard, RolesGuard)
+    @Roles(UserRole.RECEPTIONIST)
+    @Post('register')
+    registerPatient(
+        @Body() dto: RegisterPatientDto,
+        @GetUser('id') creatorId: number,
+    ): Promise<PatientResponseDto> {
+        return this.patientService.registerPatient(dto, creatorId);
+    }
+
+    // ============================================================
+    // ADMIN/RECEPTIONIST ROUTES (wildcard :id routes MUST come last)
+    // ============================================================
+
+    @UseGuards(JwtGuard, RolesGuard)
+    @Roles(UserRole.ADMIN, UserRole.RECEPTIONIST)
+    @Get()
+    getAllPatients(): Promise<PatientResponseDto[]> {
+        return this.patientService.getAllPatients();
+    }
+
+    // Admin-only: activate/deactivate patients
+    @UseGuards(JwtGuard, RolesGuard)
+    @Roles(UserRole.ADMIN)
+    @Patch(':id/activate')
+    activatePatient(@Param('id') id: string): Promise<PatientResponseDto> {
+        return this.patientService.activatePatient(parseInt(id));
+    }
+
+    @UseGuards(JwtGuard, RolesGuard)
+    @Roles(UserRole.ADMIN)
+    @Patch(':id/deactivate')
+    deactivatePatient(@Param('id') id: string): Promise<PatientResponseDto> {
+        return this.patientService.deactivatePatient(parseInt(id));
+    }
+
+    // This MUST be the last GET route to avoid matching 'profile', 'dashboard/*' as :id
+    @UseGuards(JwtGuard, RolesGuard)
+    @Roles(UserRole.ADMIN, UserRole.RECEPTIONIST)
+    @Get(':id')
+    getPatientById(@Param('id') id: string): Promise<PatientResponseDto> {
+        return this.patientService.getPatientById(parseInt(id));
     }
 }

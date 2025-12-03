@@ -99,6 +99,15 @@ export interface BookAppointmentResponse extends Appointment {
   };
 }
 
+export interface AudioInfo {
+  id: number;
+  status: 'PENDING' | 'PROCESSING' | 'COMPLETED' | 'FAILED';
+  transcription?: string;
+  extractedInfo?: Record<string, any>;
+  processedAt?: string;
+  errorMessage?: string;
+}
+
 export interface Checkup {
   id: number;
   appointmentId: number;
@@ -109,8 +118,11 @@ export interface Checkup {
   heartRate: string | null;
   bloodSugar: string | null;
   notes: string | null;
+  gapAnalysis: string | null; // Gap analysis from AI
   additionalTests: string | null;
   additionalMedications: string | null;
+  hasAudio?: boolean;
+  audioInfo?: AudioInfo;
   createdAt: string;
   doctor: DoctorInfo;
   medications: Medication[];
