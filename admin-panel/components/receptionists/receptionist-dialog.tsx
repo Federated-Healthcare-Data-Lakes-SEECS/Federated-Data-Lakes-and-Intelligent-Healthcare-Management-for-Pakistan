@@ -14,7 +14,6 @@ import {
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { receptionistService } from "@/lib/data-service"
 import type { Receptionist, ReceptionistFormData } from "@/lib/types"
 import { Gender } from "@/lib/types"
 import { toast } from "sonner"
@@ -181,7 +180,7 @@ export function ReceptionistDialog({ open, onOpenChange, receptionist, onSave, o
                   value={formData.gender}
                   onValueChange={(value) => setFormData({ ...formData, gender: value as Gender })}
                 >
-                  <SelectTrigger>
+                  <SelectTrigger className="w-full">
                     <SelectValue placeholder="Select gender" />
                   </SelectTrigger>
                   <SelectContent>

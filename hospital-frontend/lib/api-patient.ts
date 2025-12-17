@@ -57,6 +57,16 @@ export interface DoctorWithSlots extends DoctorInfo {
   upcomingSlots: AppointmentSlot[];
 }
 
+export interface DoctorWithSlotsForDate extends Omit<DoctorWithSlots, 'upcomingSlots'> {
+  slots: AppointmentSlot[];
+}
+
+export interface DoctorsByDateResponse {
+  date: string;
+  totalDoctors: number;
+  doctors: DoctorWithSlotsForDate[];
+}
+
 export interface AppointmentSlot {
   id: number;
   scheduleId: number;
@@ -249,6 +259,30 @@ export async function getAllDoctorsWithSlots(): Promise<DoctorWithSlots[]> {
 }
 
 /**
+ * Get doctors with available slots for a specific date
+ * @param date - Date string in YYYY-MM-DD format
+ * @param limit - Maximum number of slots per doctor (default: 8)
+ */
+export async function getDoctorsByDate(
+  date: string,
+  limit: number = 8
+): Promise<DoctorsByDateResponse> {
+  try {
+    const response = await api.get("/appointment-slots/doctors-by-date", {
+      params: { date, limit },
+    });
+    return response.data;
+  } catch (error: any) {
+    console.error("Error fetching doctors by date:", error);
+    return {
+      date,
+      totalDoctors: 0,
+      doctors: [],
+    };
+  }
+}
+
+/**
  * Get available slots for a specific doctor
  */
 export async function getDoctorAvailableSlots(
@@ -337,7 +371,7 @@ export function formatAppointmentTime(startTime: string, endTime: string): strin
  */
 export function formatAppointmentDate(dateString: string): string {
   const date = new Date(dateString);
-  return date.toLocaleDateString('en-US', {
+  return date.toLocaleDateString('en-PK', {
     weekday: 'short',
     year: 'numeric',
     month: 'short',

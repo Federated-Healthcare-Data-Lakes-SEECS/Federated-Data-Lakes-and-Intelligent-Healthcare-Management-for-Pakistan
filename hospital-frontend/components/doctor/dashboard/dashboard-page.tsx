@@ -46,7 +46,7 @@ export default function DashboardPage() {
   if (loading) {
     return (
       <div className="p-6 md:p-8 space-y-8">
-        <div className="flex items-center justify-center min-h-[400px]">
+        <div className="flex items-center justify-center min-h-100">
           <p className="text-muted-foreground">Loading dashboard...</p>
         </div>
       </div>
@@ -56,7 +56,7 @@ export default function DashboardPage() {
   if (error || !doctor || !stats) {
     return (
       <div className="p-6 md:p-8 space-y-8">
-        <div className="flex items-center justify-center min-h-[400px]">
+        <div className="flex items-center justify-center min-h-100">
           <p className="text-destructive">{error || "Failed to load dashboard"}</p>
         </div>
       </div>
@@ -72,7 +72,7 @@ export default function DashboardPage() {
         </div>
         <div className="text-right">
           <p className="text-xs text-muted-foreground">Today</p>
-          <p className="text-lg font-semibold">{new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', weekday: 'short' })}</p>
+          <p className="text-lg font-semibold">{new Date().toLocaleDateString('en-PK', { month: 'short', day: 'numeric', weekday: 'short' })}</p>
         </div>
       </header>
 
@@ -103,7 +103,7 @@ export default function DashboardPage() {
                     <div key={a.id} className="p-4 border rounded-lg bg-muted/30 hover:bg-muted/40 transition-colors">
                       <div className="space-y-3">
                         <div className="flex items-start gap-3">
-                          <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+                          <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
                             <span className="text-sm font-semibold text-primary">
                               {`${a.patient?.firstName?.[0] || ''}${a.patient?.lastName?.[0] || ''}`.toUpperCase() || 'PT'}
                             </span>

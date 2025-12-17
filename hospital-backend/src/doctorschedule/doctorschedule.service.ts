@@ -22,6 +22,12 @@ export class DoctorScheduleService {
       throw new BadRequestException('"from" must be before "to"');
     }
 
+    // Check if schedule is in the past
+    const now = new Date();
+    if (dto.from.getTime() < now.getTime()) {
+      throw new BadRequestException('Cannot create schedules in the past');
+    }
+
     if (dto.noOfSlots <= 0) {
       throw new BadRequestException('Number of slots must be greater than 0');
     }
@@ -86,14 +92,43 @@ export class DoctorScheduleService {
       throw new BadRequestException('User is not a doctor or does not exist');
     }
 
+    // Filter to show schedules from past 1 day onwards
+    const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+
     return this.prisma.doctorSchedule.findMany({
       where: {
         doctorId: doctor.id,
         deletedAt: null,
+        from: {
+          gte: oneDayAgo,
+        },
       },
       include: {
         appointmentSlots: {
           where: { deletedAt: null },
+          include: {
+            appointments: {
+              include: {
+                patient: {
+                  include: {
+                    user: true,
+                  },
+                },
+                walkinAppointment: {
+                  select: {
+                    status: true,
+                  },
+                },
+                onlineAppointment: {
+                  select: {
+                    status: true,
+                  },
+                },
+              },
+              orderBy: { createdAt: 'desc' },
+              take: 1, // Get only the latest appointment
+            },
+          },
           orderBy: { startTime: 'asc' },
         },
       },
@@ -107,6 +142,29 @@ export class DoctorScheduleService {
       include: {
         appointmentSlots: {
           where: { deletedAt: null },
+          include: {
+            appointments: {
+              include: {
+                patient: {
+                  include: {
+                    user: true,
+                  },
+                },
+                walkinAppointment: {
+                  select: {
+                    status: true,
+                  },
+                },
+                onlineAppointment: {
+                  select: {
+                    status: true,
+                  },
+                },
+              },
+              orderBy: { createdAt: 'desc' },
+              take: 1, // Get only the latest appointment
+            },
+          },
           orderBy: { startTime: 'asc' },
         },
       },

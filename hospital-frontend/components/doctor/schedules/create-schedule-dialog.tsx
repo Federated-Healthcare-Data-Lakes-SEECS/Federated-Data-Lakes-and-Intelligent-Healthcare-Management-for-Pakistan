@@ -13,7 +13,9 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Clock, Grid3x3 } from "lucide-react";
+import { Clock, Grid3x3, AlertTriangle } from "lucide-react";
+import { DateTimePicker } from "@/app/components/lingua-time/datetime-picker";
+import { toast } from "sonner";
 
 interface CreateScheduleDialogProps {
   open: boolean;
@@ -26,37 +28,44 @@ export default function CreateScheduleDialog({
   onOpenChange,
   onScheduleCreated,
 }: CreateScheduleDialogProps) {
-  const [formData, setFormData] = useState({
-    date: "",
-    startTime: "",
-    endTime: "",
-    noOfSlots: "",
-  });
+  const [startDateTime, setStartDateTime] = useState<Date | undefined>(undefined);
+  const [durationHours, setDurationHours] = useState<string>("");
+  const [durationMinutes, setDurationMinutes] = useState<string>("");
+  const [noOfSlots, setNoOfSlots] = useState<string>("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const minutesDiff = useMemo(() => {
-    if (!formData.startTime || !formData.endTime) return 0;
-    const start = new Date(`${formData.date}T${formData.startTime}:00`);
-    const end = new Date(`${formData.date}T${formData.endTime}:00`);
-    return Math.max(0, (end.getTime() - start.getTime()) / 60000);
-  }, [formData]);
+  // Calculate end time based on start time and duration
+  const endDateTime = useMemo(() => {
+    if (!startDateTime) return undefined;
+    const hours = parseInt(durationHours) || 0;
+    const minutes = parseInt(durationMinutes) || 0;
+    const totalMinutes = hours * 60 + minutes;
+    if (totalMinutes <= 0) return undefined;
+    
+    const end = new Date(startDateTime.getTime() + totalMinutes * 60000);
+    return end;
+  }, [startDateTime, durationHours, durationMinutes]);
+
+  const totalMinutes = useMemo(() => {
+    if (!startDateTime || !endDateTime) return 0;
+    return Math.max(0, (endDateTime.getTime() - startDateTime.getTime()) / 60000);
+  }, [startDateTime, endDateTime]);
 
   const suggestedSlotDuration = useMemo(() => {
-    const slots = parseInt(formData.noOfSlots) || 0;
-    if (minutesDiff === 0 || slots === 0) return 0;
-    return Math.floor(minutesDiff / slots);
-  }, [minutesDiff, formData.noOfSlots]);
+    const slots = parseInt(noOfSlots) || 0;
+    if (totalMinutes === 0 || slots === 0) return 0;
+    return Math.floor(totalMinutes / slots);
+  }, [totalMinutes, noOfSlots]);
 
   const previewSlots = useMemo(() => {
-    const slots = parseInt(formData.noOfSlots) || 0;
-    if (!formData.date || !formData.startTime || suggestedSlotDuration === 0)
-      return [];
+    const slots = parseInt(noOfSlots) || 0;
+    if (!startDateTime || suggestedSlotDuration === 0) return [];
     const out: { start: string; end: string }[] = [];
-    let cursor = new Date(`${formData.date}T${formData.startTime}:00`);
+    let cursor = new Date(startDateTime.getTime());
     for (let i = 0; i < slots; i++) {
       const end = new Date(cursor.getTime() + suggestedSlotDuration * 60000);
-      if (end.toISOString() > `${formData.date}T${formData.endTime}:00Z`) break;
+      if (endDateTime && end.getTime() > endDateTime.getTime()) break;
       out.push({
         start: cursor.toLocaleTimeString([], {
           hour: "2-digit",
@@ -67,51 +76,45 @@ export default function CreateScheduleDialog({
       cursor = end;
     }
     return out.slice(0, 6); // cap preview
-  }, [
-    formData.date,
-    formData.startTime,
-    formData.endTime,
-    formData.noOfSlots,
-    suggestedSlotDuration,
-  ]);
+  }, [startDateTime, endDateTime, noOfSlots, suggestedSlotDuration]);
+
+  // Check if schedule is in the past
+  const isPastSchedule = useMemo(() => {
+    if (!startDateTime) return false;
+    return startDateTime.getTime() < Date.now();
+  }, [startDateTime]);
 
   const isValid =
-    formData.date &&
-    formData.startTime &&
-    formData.endTime &&
-    parseInt(formData.noOfSlots) > 0 &&
-    minutesDiff > 0;
+    startDateTime &&
+    endDateTime &&
+    parseInt(noOfSlots) > 0 &&
+    totalMinutes > 0 &&
+    !isPastSchedule;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!isValid) return;
+    if (!isValid || !startDateTime || !endDateTime) return;
     setSubmitting(true);
     setError(null);
     
     try {
-      // Combine date and time to create ISO timestamps
-      const fromDateTime = new Date(`${formData.date}T${formData.startTime}:00`).toISOString();
-      const toDateTime = new Date(`${formData.date}T${formData.endTime}:00`).toISOString();
-      
       await createSchedule({
-        from: fromDateTime,
-        to: toDateTime,
-        noOfSlots: parseInt(formData.noOfSlots),
+        from: startDateTime.toISOString(),
+        to: endDateTime.toISOString(),
+        noOfSlots: parseInt(noOfSlots),
       });
       
       // Reset form
-      setFormData({
-        date: "",
-        startTime: "",
-        endTime: "",
-        noOfSlots: "",
-      });
+      setStartDateTime(undefined);
+      setDurationHours("");
+      setDurationMinutes("");
+      setNoOfSlots("");
       
-      alert("Schedule created successfully!");
+      toast.success("Schedule created successfully!");
       onScheduleCreated?.();
       onOpenChange(false);
     } catch (err: any) {
-      console.error("Error creating schedule:", err);
+      // console.error("Error creating schedule:", err);
       setError(err.response?.data?.message || "Failed to create schedule");
     } finally {
       setSubmitting(false);
@@ -121,8 +124,8 @@ export default function CreateScheduleDialog({
   return (
     <Dialog
       open={open}
-      onOpenChange={(o) => {
-        if (!submitting) onOpenChange(o);
+      onOpenChange={(open: boolean) => {
+        if (!submitting) onOpenChange(open);
       }}
     >
       <DialogContent className="max-w-md" showCloseButton={!submitting}>
@@ -145,57 +148,68 @@ export default function CreateScheduleDialog({
           <div className="grid gap-4">
             <div className="space-y-2">
               <Label
-                htmlFor="date"
+                htmlFor="startDateTime"
                 className="text-xs font-medium"
               >
-                Date
+                Start Date & Time
               </Label>
-              <Input
-                id="date"
-                type="date"
-                value={formData.date}
-                onChange={(e) =>
-                  setFormData({ ...formData, date: e.target.value })
-                }
-                required
+              <DateTimePicker
+                dateTime={startDateTime}
+                setDateTime={setStartDateTime}
+                disabled={submitting}
+                aria-describedby={undefined}
               />
+              {isPastSchedule && (
+                <p className="text-xs text-destructive flex items-center gap-1">
+                  <AlertTriangle className="w-3 h-3" /> Cannot create schedules in the past
+                </p>
+              )}
             </div>
+            
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label
-                  htmlFor="startTime"
+                  htmlFor="durationHours"
                   className="text-xs font-medium"
                 >
-                  Start
+                  Duration (Hours)
                 </Label>
                 <Input
-                  id="startTime"
-                  type="time"
-                  value={formData.startTime}
-                  onChange={(e) =>
-                    setFormData({ ...formData, startTime: e.target.value })
-                  }
-                  required
+                  id="durationHours"
+                  type="number"
+                  min={0}
+                  placeholder="0"
+                  value={durationHours}
+                  onChange={(e) => setDurationHours(e.target.value)}
+                  disabled={submitting}
                 />
               </div>
               <div className="space-y-2">
                 <Label
-                  htmlFor="endTime"
+                  htmlFor="durationMinutes"
                   className="text-xs font-medium"
                 >
-                  End
+                  Duration (Minutes)
                 </Label>
                 <Input
-                  id="endTime"
-                  type="time"
-                  value={formData.endTime}
-                  onChange={(e) =>
-                    setFormData({ ...formData, endTime: e.target.value })
-                  }
-                  required
+                  id="durationMinutes"
+                  type="number"
+                  min={0}
+                  max={59}
+                  placeholder="0"
+                  value={durationMinutes}
+                  onChange={(e) => setDurationMinutes(e.target.value)}
+                  disabled={submitting}
                 />
               </div>
             </div>
+            
+            {endDateTime && (
+              <p className="text-xs text-muted-foreground">
+                End time: {endDateTime.toLocaleString()}
+              </p>
+            )}
+            
             <div className="space-y-2">
               <Label
                 htmlFor="noOfSlots"
@@ -207,10 +221,9 @@ export default function CreateScheduleDialog({
                 id="noOfSlots"
                 type="number"
                 min={1}
-                value={formData.noOfSlots}
-                onChange={(e) =>
-                  setFormData({ ...formData, noOfSlots: e.target.value })
-                }
+                value={noOfSlots}
+                onChange={(e) => setNoOfSlots(e.target.value)}
+                disabled={submitting}
                 required
               />
               {suggestedSlotDuration > 0 && (

@@ -5,7 +5,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   return (
     <SidebarProvider>
       <AppSidebar />
-      <SidebarInset className="bg-gradient-to-br from-blue-50/50 via-white to-slate-50/50">
+      <SidebarInset className="bg-linear-to-br from-blue-50/50 via-white to-slate-50/50">
         <div className="flex flex-1 flex-col">
           {children}
         </div>

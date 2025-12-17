@@ -134,7 +134,7 @@ export function DepartmentDialog({ open, onOpenChange, department, onSave, onErr
                 onValueChange={(value) => setFormData({ ...formData, code: value })}
                 disabled={loading}
               >
-                <SelectTrigger>
+                <SelectTrigger className="w-full">
                   <SelectValue placeholder="Select standard department" />
                 </SelectTrigger>
                 <SelectContent>

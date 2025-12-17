@@ -1,11 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import DashboardPage from "@/components/doctor/dashboard/dashboard-page";
+import EnhancedDashboardPage from "@/components/doctor/dashboard/enhanced-dashboard-page";
 import SchedulesPage from "@/components/doctor/schedules/schedules-page";
-import AppointmentsPage from "@/components/doctor/appointments/appointments-page";
-import HistoryPage from "@/components/doctor/history/history-page";
-import DoctorNavigation from "@/components/doctor/doctor-navigation";
+import AppointmentsPageNew from "@/components/doctor/appointments/appointments-page-new";
+import HistoryPage from "@/components/doctor/history/history-page-new";
+import EnhancedDoctorSidebar from "@/components/doctor/enhanced-doctor-sidebar";
 
 export default function Home() {
   const [currentPage, setCurrentPage] = useState<
@@ -13,13 +13,13 @@ export default function Home() {
   >("dashboard");
 
   return (
-    <div className="flex h-screen bg-background">
-      <DoctorNavigation currentPage={currentPage} setCurrentPage={setCurrentPage} />
+    <div className="flex h-screen bg-linear-to-br from-blue-50/50 via-white to-cyan-50/50">
+      <EnhancedDoctorSidebar currentPage={currentPage} setCurrentPage={setCurrentPage} />
 
       <main className="flex-1 overflow-auto">
-        {currentPage === "dashboard" && <DashboardPage />}
+        {currentPage === "dashboard" && <EnhancedDashboardPage />}
         {currentPage === "schedules" && <SchedulesPage />}
-        {currentPage === "appointments" && <AppointmentsPage />}
+        {currentPage === "appointments" && <AppointmentsPageNew />}
         {currentPage === "history" && <HistoryPage />}
       </main>
     </div>

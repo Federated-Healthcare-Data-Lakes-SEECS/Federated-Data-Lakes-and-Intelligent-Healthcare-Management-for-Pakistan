@@ -208,7 +208,7 @@ export function DoctorDialog({ open, onOpenChange, doctor, onSave, onError }: Do
                   value={formData.gender}
                   onValueChange={(value) => setFormData({ ...formData, gender: value as Gender })}
                 >
-                  <SelectTrigger>
+                  <SelectTrigger className="w-full">
                     <SelectValue placeholder="Select gender" />
                   </SelectTrigger>
                   <SelectContent>
@@ -245,7 +245,7 @@ export function DoctorDialog({ open, onOpenChange, doctor, onSave, onError }: Do
                 onValueChange={(value) => setFormData({ ...formData, departmentName: value })}
                 disabled={loading}
               >
-                <SelectTrigger>
+                <SelectTrigger className="w-full">
                   <SelectValue placeholder="Select department" />
                 </SelectTrigger>
                 <SelectContent>

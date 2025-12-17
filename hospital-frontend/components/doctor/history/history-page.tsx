@@ -59,7 +59,7 @@ export default function HistoryPage() {
   }, []);
 
   const formatDate = (isoDate: string) => {
-    return new Date(isoDate).toLocaleDateString("en-US", {
+    return new Date(isoDate).toLocaleDateString("en-PK", {
       year: "numeric",
       month: "long",
       day: "numeric",
@@ -67,7 +67,7 @@ export default function HistoryPage() {
   };
 
   const formatTime = (isoDate: string) => {
-    return new Date(isoDate).toLocaleTimeString("en-US", {
+    return new Date(isoDate).toLocaleTimeString("en-PK", {
       hour: "2-digit",
       minute: "2-digit",
     });
@@ -87,7 +87,7 @@ export default function HistoryPage() {
   if (loading) {
     return (
       <div className="p-6 md:p-8 space-y-6">
-        <div className="flex items-center justify-center min-h-[400px]">
+        <div className="flex items-center justify-center min-h-100">
           <p className="text-muted-foreground">Loading checkup history...</p>
         </div>
       </div>
@@ -97,7 +97,7 @@ export default function HistoryPage() {
   if (error) {
     return (
       <div className="p-6 md:p-8 space-y-6">
-        <div className="flex items-center justify-center min-h-[400px]">
+        <div className="flex items-center justify-center min-h-100">
           <p className="text-destructive">{error}</p>
         </div>
       </div>
@@ -139,7 +139,7 @@ export default function HistoryPage() {
               <CardContent className="pt-6">
                 <div className="flex items-start justify-between gap-4">
                   <div className="flex items-start gap-4 flex-1">
-                    <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+                    <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
                       <User className="w-6 h-6 text-primary" />
                     </div>
                     
@@ -199,7 +199,7 @@ export default function HistoryPage() {
                     </div>
                   </div>
 
-                  <ChevronRight className="w-5 h-5 text-muted-foreground flex-shrink-0" />
+                  <ChevronRight className="w-5 h-5 text-muted-foreground shrink-0" />
                 </div>
               </CardContent>
             </Card>
@@ -212,7 +212,7 @@ export default function HistoryPage() {
 
 function CheckupDetails({ checkup, onBack }: { checkup: RecentCheckup; onBack: () => void }) {
   const formatDate = (isoDate: string) => {
-    return new Date(isoDate).toLocaleDateString("en-US", {
+    return new Date(isoDate).toLocaleDateString("en-PK", {
       year: "numeric",
       month: "long",
       day: "numeric",
@@ -220,7 +220,7 @@ function CheckupDetails({ checkup, onBack }: { checkup: RecentCheckup; onBack: (
   };
 
   const formatTime = (isoDate: string) => {
-    return new Date(isoDate).toLocaleTimeString("en-US", {
+    return new Date(isoDate).toLocaleTimeString("en-PK", {
       hour: "2-digit",
       minute: "2-digit",
     });
@@ -251,7 +251,7 @@ function CheckupDetails({ checkup, onBack }: { checkup: RecentCheckup; onBack: (
 
       <div className="space-y-6">
         {/* Patient Header */}
-        <Card className="border shadow-sm bg-gradient-to-r from-secondary/40 via-secondary/20 to-secondary/10">
+        <Card className="border shadow-sm bg-linear-to-r from-secondary/40 via-secondary/20 to-secondary/10">
           <CardContent className="pt-6">
             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 flex-1">
@@ -292,7 +292,7 @@ function CheckupDetails({ checkup, onBack }: { checkup: RecentCheckup; onBack: (
         <SectionCard icon={<Pill className="w-4 h-4" />} title="Prescription">
           <div className="space-y-3">
             {!checkup.medications || checkup.medications.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No medications prescribed</p>
+              <p className="text-sm text-muted-foreground">No medications prescribed from inventory</p>
             ) : (
               checkup.medications.map((med) => (
                 <div
@@ -347,7 +347,7 @@ function CheckupDetails({ checkup, onBack }: { checkup: RecentCheckup; onBack: (
         <SectionCard icon={<FlaskConical className="w-4 h-4" />} title="Lab Test Recommendations">
           <div className="space-y-3">
             {!checkup.recommendedLabTests || checkup.recommendedLabTests.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No lab tests recommended</p>
+              <p className="text-sm text-muted-foreground">No lab tests recommended from templates</p>
             ) : (
               <div className="flex flex-wrap gap-2">
                 {checkup.recommendedLabTests.map((test) => (

@@ -5,7 +5,7 @@ import type React from "react"
 import { useEffect } from "react"
 import { useRouter, usePathname } from "next/navigation"
 import { useAuth, type Role } from "@/hooks/use-auth"
-import { Loader2 } from "lucide-react"
+import { LoadingSpinner } from "@/components/loading-screen"
 
 export function RoleGuard({
   allowed,
@@ -50,12 +50,7 @@ export function RoleGuard({
   }, [isLoading, isAuthenticated, isAdmin, user, allowed, isPatient, isDoctor, logout, pathname, router])
 
   if (isLoading || !isAuthenticated) {
-    return (
-      <div className="w-full min-h-[40vh] flex items-center justify-center">
-        <Loader2 className="animate-spin mr-2" />
-        <span>Loading...</span>
-      </div>
-    )
+    return <LoadingSpinner text="Verifying access..." />
   }
 
   return <>{children}</>

@@ -9,9 +9,9 @@ export class AudioProcessingJobService implements OnModuleInit {
   private isProcessing = false;
 
   // Configuration
-  private readonly maxRetries = 3; // Maximum retry attempts before giving up
+  private readonly maxRetries = 10; // Maximum retry attempts before giving up
   private readonly retryDelayMs = 5000; // 5 seconds between retries in same batch
-  private readonly failedRetryAfterMinutes = 10; // Retry failed items after 10 minutes
+  private readonly failedRetryAfterMinutes = 1; // Retry failed items after 1 minute
 
   constructor(
     private prisma: PrismaService,

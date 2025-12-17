@@ -180,7 +180,7 @@ export class AudioProcessingService {
           headers: {
             ...formData.getHeaders(),
           },
-          timeout: 600000, // 10 minute timeout for processing (includes Whisper transcription)
+          timeout: 1200000, // 20 minute timeout for processing (includes Whisper transcription)
         }),
       );
 

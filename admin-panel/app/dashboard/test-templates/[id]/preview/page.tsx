@@ -249,7 +249,7 @@ export default function TemplatePreviewPage() {
     return (
       <Collapsible key={key} open={isOpen} onOpenChange={() => toggleProfile(key)} className="border rounded-lg overflow-hidden">
         <CollapsibleTrigger asChild>
-          <div className="flex items-center justify-between p-4 bg-gradient-to-r from-blue-50 to-indigo-50 cursor-pointer hover:from-blue-100 hover:to-indigo-100 transition-colors">
+          <div className="flex items-center justify-between p-4 bg-linear-to-r from-blue-50 to-indigo-50 cursor-pointer hover:from-blue-100 hover:to-indigo-100 transition-colors">
             <h3 className="font-semibold text-lg text-blue-800">{profile.name}</h3>
             {isOpen ? <ChevronDown className="h-5 w-5 text-blue-600" /> : <ChevronRight className="h-5 w-5 text-blue-600" />}
           </div>
@@ -344,7 +344,7 @@ export default function TemplatePreviewPage() {
               <ArrowLeft className="h-5 w-5" />
             </Button>
             <div>
-              <h1 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-blue-600 to-blue-800 bg-clip-text text-transparent">
+              <h1 className="text-3xl font-bold tracking-tight bg-linear-to-r from-blue-600 to-blue-800 bg-clip-text text-transparent">
                 {template.name}
               </h1>
               <p className="text-muted-foreground mt-1">{template.description || "No description provided"}</p>

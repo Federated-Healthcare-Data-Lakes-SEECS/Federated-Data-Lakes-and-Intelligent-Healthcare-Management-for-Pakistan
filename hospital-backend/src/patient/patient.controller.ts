@@ -84,9 +84,8 @@ export class PatientController {
     @Post('register')
     registerPatient(
         @Body() dto: RegisterPatientDto,
-        @GetUser('id') creatorId: number,
     ): Promise<PatientResponseDto> {
-        return this.patientService.registerPatient(dto, creatorId);
+        return this.patientService.registerPatient(dto);
     }
 
     // ============================================================

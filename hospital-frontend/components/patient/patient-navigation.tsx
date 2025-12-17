@@ -41,8 +41,8 @@ export default function PatientNavigation({
     <aside className="w-64 border-r border-border bg-card p-6 flex flex-col">
       <div className="mb-8">
         <div className="space-y-1">
-          <h1 className="text-2xl font-bold text-foreground">HealthHub</h1>
-          <p className="text-sm text-muted-foreground">Patient Portal</p>
+          <h1 className="text-2xl font-bold text-foreground">Medicare</h1>
+          <p className="text-base text-muted-foreground">Patient Portal</p>
         </div>
       </div>
 

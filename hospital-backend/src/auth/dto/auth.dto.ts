@@ -35,13 +35,6 @@ export class RegisterDto {
 
   @IsEnum(Gender)
   gender: Gender;
-
-  // CNIC format: XXXXX-XXXXXXX-X (15 chars including dashes)
-  @IsString()
-  @Matches(/^\d{5}-\d{7}-\d{1}$/, {
-    message: 'CNIC must be in format 12345-1234567-1',
-  })
-  cnic: string;
 }
 
 export class AuthResponseDto {

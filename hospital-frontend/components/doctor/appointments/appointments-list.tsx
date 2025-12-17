@@ -1,9 +1,20 @@
 "use client";
 
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { User, Clock, FileText, X, AlertCircle, Globe, Building2, Droplet, AlertTriangle } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 import type { UpcomingAppointment } from "@/lib/api/doctor";
 
@@ -32,20 +43,58 @@ export default function AppointmentsList({
   onSelectAppointment,
   onCancelAppointment,
 }: AppointmentsListProps) {
-  return (
-    <div className="space-y-4">
-      {appointments.length === 0 && (
-        <Card className="border-0 shadow-sm">
-          <CardContent className="py-12">
-            <div className="flex flex-col items-center gap-3">
-              <AlertCircle className="w-8 h-8 text-muted-foreground" />
-              <p className="text-muted-foreground">No booked appointments</p>
-            </div>
-          </CardContent>
-        </Card>
-      )}
+  const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
+  const [appointmentToCancel, setAppointmentToCancel] = useState<number | null>(null);
 
-      {appointments.map((apt) => {
+  const handleCancelClick = (id: number) => {
+    setAppointmentToCancel(id);
+    setCancelDialogOpen(true);
+  };
+
+  const handleConfirmCancel = () => {
+    if (appointmentToCancel) {
+      onCancelAppointment(appointmentToCancel);
+      setCancelDialogOpen(false);
+      setAppointmentToCancel(null);
+    }
+  };
+
+  // Group appointments by status
+  const groupedAppointments = {
+    booked: appointments.filter(apt => apt.status === "booked"),
+    completed: appointments.filter(apt => apt.status === "completed"),
+    cancelled: appointments.filter(apt => apt.status === "cancelled"),
+    other: appointments.filter(apt => !["booked", "completed", "cancelled"].includes(apt.status)),
+  };
+
+  const allGrouped = [
+    { status: "booked", title: "Booked", appointments: groupedAppointments.booked },
+    { status: "completed", title: "Completed", appointments: groupedAppointments.completed },
+    { status: "cancelled", title: "Cancelled", appointments: groupedAppointments.cancelled },
+    { status: "other", title: "Other", appointments: groupedAppointments.other },
+  ].filter(group => group.appointments.length > 0);
+
+  return (
+    <>
+      <div className="space-y-6">
+        {appointments.length === 0 && (
+          <Card className="border-0 shadow-sm">
+            <CardContent className="py-12">
+              <div className="flex flex-col items-center gap-3">
+                <AlertCircle className="w-8 h-8 text-muted-foreground" />
+                <p className="text-muted-foreground">No appointments</p>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {allGrouped.map((group) => (
+          <div key={group.status} className="space-y-3">
+            <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
+              {group.title} ({group.appointments.length})
+            </h3>
+            <div className="space-y-4">
+              {group.appointments.map((apt) => {
         const date = formatDate(apt.startTime);
         const timeRange = formatTimeRange(apt.startTime, apt.endTime);
         const isSelected = selectedAppointment?.id === apt.id;
@@ -66,7 +115,7 @@ export default function AppointmentsList({
             <CardContent className="pt-6">
               <div className="flex flex-col gap-4">
                 <div className="flex items-start gap-4">
-                  <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+                  <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
                     <User className="w-6 h-6 text-primary" />
                   </div>
                   <div className="flex-1 space-y-2">
@@ -133,7 +182,7 @@ export default function AppointmentsList({
                     <Button
                       size="sm"
                       variant="ghost"
-                      onClick={() => onCancelAppointment(apt.id)}
+                      onClick={() => handleCancelClick(apt.id)}
                       className="text-destructive hover:text-destructive hover:bg-destructive/10"
                     >
                       <X className="w-4 h-4 mr-1" /> Cancel
@@ -145,6 +194,27 @@ export default function AppointmentsList({
           </Card>
         );
       })}
-    </div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <AlertDialog open={cancelDialogOpen} onOpenChange={setCancelDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Cancel Appointment</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to cancel this appointment? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>No, keep it</AlertDialogCancel>
+            <AlertDialogAction onClick={handleConfirmCancel} className="bg-destructive hover:bg-destructive/90">
+              Yes, cancel appointment
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 }

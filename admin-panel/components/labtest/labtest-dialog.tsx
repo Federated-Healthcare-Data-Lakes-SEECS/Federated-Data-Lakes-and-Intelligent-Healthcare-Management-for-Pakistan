@@ -144,7 +144,7 @@ export function LabTestDialog({ open, onOpenChange, onSave, onError }: LabTestDi
                 onValueChange={(value) => setFormData({ ...formData, departmentName: value })}
                 disabled={loading}
               >
-                <SelectTrigger>
+                <SelectTrigger className="w-full">
                   <SelectValue placeholder="Select department" />
                 </SelectTrigger>
                 <SelectContent>
@@ -163,7 +163,7 @@ export function LabTestDialog({ open, onOpenChange, onSave, onError }: LabTestDi
                 onValueChange={(value) => setFormData({ ...formData, templateId: Number(value) })}
                 disabled={loading}
               >
-                <SelectTrigger>
+                <SelectTrigger className="w-full">
                   <SelectValue placeholder="Select template" />
                 </SelectTrigger>
                 <SelectContent>

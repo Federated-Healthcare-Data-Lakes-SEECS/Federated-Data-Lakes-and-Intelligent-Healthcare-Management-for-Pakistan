@@ -40,7 +40,7 @@ export default function DoctorNavigation({
     <aside className="w-64 border-r border-border bg-card p-6 flex flex-col">
       <div className="mb-8">
         <div className="space-y-1">
-          <h1 className="text-2xl font-bold text-foreground">HealthHub</h1>
+          <h1 className="text-2xl font-bold text-foreground">Medicare</h1>
           <p className="text-sm text-muted-foreground">Doctor Portal</p>
         </div>
       </div>

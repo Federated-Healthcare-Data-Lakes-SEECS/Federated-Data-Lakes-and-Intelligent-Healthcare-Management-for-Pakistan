@@ -104,6 +104,7 @@ export class CheckupController {
     @Param('appointmentId') appointmentId: string,
     @GetUser('id') userId: number,
   ) {
+    console.log('[Checkup Controller] getCheckupByAppointment called with:', { appointmentId, userId });
     return this.checkupService.getCheckupByAppointmentId(parseInt(appointmentId), userId);
   }
 

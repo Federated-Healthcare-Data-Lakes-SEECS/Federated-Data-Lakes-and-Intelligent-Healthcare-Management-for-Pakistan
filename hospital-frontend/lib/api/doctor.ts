@@ -93,6 +93,12 @@ export interface RecentCheckup {
     patient: {
       firstName: string;
       lastName: string;
+      dateOfBirth?: string;
+      bloodGroup?: string;
+      medicalHistory?: string;
+      allergies?: string;
+      gender?: string;
+      familyHistory?: string;
     };
   };
 }
@@ -119,6 +125,33 @@ export interface AppointmentSlot {
   createdAt: string;
   updatedAt: string;
   deletedAt: string | null;
+  appointments?: SlotAppointment[];
+}
+
+export interface SlotAppointment {
+  id: number;
+  patientId: number;
+  slotId: number;
+  reason?: string;
+  createdAt: string;
+  patient: {
+    user: {
+    id: number;
+    firstName: string;
+    lastName: string;
+    email: string;
+    gender: string;
+    cnic?: string;
+    }
+    dateOfBirth?: string;
+    bloodGroup?: string;
+  };
+  walkinAppointment?: {
+    status: string;
+  };
+  onlineAppointment?: {
+    status: string;
+  };
 }
 
 export interface Medication {
@@ -300,11 +333,12 @@ export async function getRecentCheckups(limit: number = 5): Promise<RecentChecku
 }
 
 /**
- * Get all booked appointments
+ * Get all booked appointments with optional filter
  */
-export async function getBookedAppointments(): Promise<UpcomingAppointment[]> {
+export async function getBookedAppointments(filter?: string): Promise<UpcomingAppointment[]> {
   try {
-    const response = await api.get("/doctors/appointments/booked");
+    const filterParam = filter ? `?filter=${filter}` : '';
+    const response = await api.get(`/doctors/appointments/booked${filterParam}`);
     return response.data;
   } catch (error: any) {
     // Return empty array if no appointments found (404) or other errors
@@ -312,6 +346,24 @@ export async function getBookedAppointments(): Promise<UpcomingAppointment[]> {
       return [];
     }
     console.error("Error fetching booked appointments:", error);
+    return [];
+  }
+}
+
+/**
+ * Get ALL appointments without date filtering
+ */
+export async function getAllAppointments(): Promise<UpcomingAppointment[]> {
+  try {
+    const response = await api.get("/doctors/appointments/all");
+    console.log(response.data);
+    return response.data;
+  } catch (error: any) {
+    // Return empty array if no appointments found (404) or other errors
+    if (error.response?.status === 404) {
+      return [];
+    }
+    console.error("Error fetching all appointments:", error);
     return [];
   }
 }
@@ -498,7 +550,7 @@ export async function getDrugs(): Promise<Drug[]> {
  */
 export async function getLabTests(): Promise<LabTest[]> {
   try {
-    const response = await api.get("/lab-tests");
+    const response = await api.get("/labtests");
     return response.data;
   } catch (error: any) {
     // Return empty array if no lab tests found (404) or other errors
@@ -515,7 +567,7 @@ export async function getLabTests(): Promise<LabTest[]> {
  */
 export async function getLabTestsByDepartment(departmentName: string): Promise<LabTest[]> {
   try {
-    const response = await api.get(`/lab-tests/department/${departmentName}`);
+    const response = await api.get(`/labtests/department/${departmentName}`);
     return response.data;
   } catch (error: any) {
     // Return empty array if no lab tests found (404) or other errors
@@ -525,4 +577,165 @@ export async function getLabTestsByDepartment(departmentName: string): Promise<L
     console.error("Error fetching lab tests by department:", error);
     return [];
   }
+}
+
+/**
+ * Cancel an appointment
+ */
+export async function cancelAppointment(appointmentId: number): Promise<void> {
+  await api.patch(`/doctors/appointments/${appointmentId}/cancel`);
+}
+
+// ============================================================================
+// NEW DASHBOARD APIS - Enhanced Features
+// ============================================================================
+
+export interface TodaysAppointmentsSummary {
+  upcoming: UpcomingAppointment[];
+  completed: UpcomingAppointment[];
+  missed: UpcomingAppointment[];
+  cancelled: UpcomingAppointment[];
+}
+
+export interface WeeklyStats {
+  patientsSeenThisWeek: number;
+  pendingCheckups: number;
+}
+
+export interface RecentPatient {
+  id: number;
+  firstName: string;
+  lastName: string;
+  email: string;
+  gender: string;
+  cnic?: string;
+  dateOfBirth?: string;
+  bloodGroup?: string;
+  medicalHistory?: string;
+  familyHistory?: string;
+  allergies?: string;
+  lastAppointmentDate: string;
+  totalAppointments: number;
+}
+
+export interface UpcomingScheduleItem {
+  id: number;
+  from: string;
+  to: string;
+  noOfSlots: number;
+  totalSlots: number;
+  bookedSlots: number;
+  availableSlots: number;
+  unbookableSlots: number;
+}
+
+export interface PatientDetails {
+  id: number;
+  firstName: string;
+  lastName: string;
+  email: string;
+  gender: string;
+  cnic?: string;
+  dateOfBirth?: string;
+  bloodGroup?: string;
+  medicalHistory?: string;
+  familyHistory?: string;
+  allergies?: string;
+  address?: string;
+  phoneNumber?: string;
+  emergencyContact?: string;
+  appointments: {
+    id: number;
+    date: string;
+    reason?: string;
+    status: string;
+    checkup?: {
+      diagnosis: string;
+      symptoms?: string;
+      bloodPressure?: string;
+      temperature?: string;
+      heartRate?: string;
+      bloodSugar?: string;
+      notes?: string;
+      medications: {
+        drugName: string;
+        dosePerIntake: string;
+        timesPerDay: number;
+        totalDays: number;
+        instructions?: string;
+      }[];
+      labTests: string[];
+    };
+  }[];
+}
+
+/**
+ * Get today's appointments categorized (upcoming, completed, missed, cancelled)
+ */
+export async function getTodaysAppointments(): Promise<TodaysAppointmentsSummary> {
+  try {
+    const response = await api.get("/doctors/dashboard/todays-appointments");
+    console.log('Fetched today\'s appointments successfully');
+    return response.data;
+  } catch (error: any) {
+    if (error.response?.status === 404) {
+      console.log('404 - error on lib/api/doctor.ts line 675 (getTodayAppointments FUNCTION)');
+      return { upcoming: [], completed: [], missed: [], cancelled: [] };
+    }
+    console.error("Error fetching today's appointments:", error);
+    return { upcoming: [], completed: [], missed: [], cancelled: [] };
+  }
+}
+
+/**
+ * Get weekly statistics
+ */
+export async function getWeeklyStats(): Promise<WeeklyStats> {
+  try {
+    const response = await api.get("/doctors/dashboard/weekly-stats");
+    return response.data;
+  } catch (error: any) {
+    console.error("Error fetching weekly stats:", error);
+    return { patientsSeenThisWeek: 0, pendingCheckups: 0 };
+  }
+}
+
+/**
+ * Get recent patients (up to 10, sorted by recency)
+ */
+export async function getRecentPatients(limit: number = 10): Promise<RecentPatient[]> {
+  try {
+    const response = await api.get(`/doctors/dashboard/recent-patients?limit=${limit}`);
+    return response.data;
+  } catch (error: any) {
+    if (error.response?.status === 404) {
+      return [];
+    }
+    console.error("Error fetching recent patients:", error);
+    return [];
+  }
+}
+
+/**
+ * Get upcoming schedule (today and tomorrow)
+ */
+export async function getUpcomingSchedule(): Promise<UpcomingScheduleItem[]> {
+  try {
+    const response = await api.get("/doctors/dashboard/upcoming-schedule");
+    return response.data;
+  } catch (error: any) {
+    if (error.response?.status === 404) {
+      return [];
+    }
+    console.error("Error fetching upcoming schedule:", error);
+    return [];
+  }
+}
+
+/**
+ * Get patient details (only accessible if doctor has treated them)
+ */
+export async function getPatientDetails(patientId: number): Promise<PatientDetails> {
+  const response = await api.get(`/doctors/patients/${patientId}`);
+  return response.data;
 }

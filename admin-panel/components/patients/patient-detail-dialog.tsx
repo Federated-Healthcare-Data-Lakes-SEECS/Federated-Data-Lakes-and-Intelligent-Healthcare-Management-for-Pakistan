@@ -24,7 +24,7 @@ export function PatientDetailDialog({ open, onOpenChange, patient }: PatientDeta
   const formatDate = (date?: Date | string | null) => {
     if (!date) return "Not provided"
     const d = typeof date === 'string' ? new Date(date) : date
-    return d.toLocaleDateString('en-US', {
+    return d.toLocaleDateString('en-PK', {
       year: 'numeric',
       month: 'long',
       day: 'numeric'
@@ -137,11 +137,11 @@ export function PatientDetailDialog({ open, onOpenChange, patient }: PatientDeta
               </div>
               <div className="col-span-2 space-y-1">
                 <Label className="text-xs text-muted-foreground">Medical History</Label>
-                <p className="font-medium text-sm">{patient.medicalHistory || "No records"}</p>
+                <p className="font-medium text-sm">{patient.medicalHistory ? patient.medicalHistory.slice(0, 600) : "No records"}</p>
               </div>
               <div className="col-span-2 space-y-1">
                 <Label className="text-xs text-muted-foreground">Family History</Label>
-                <p className="font-medium text-sm">{patient.familyHistory || "No records"}</p>
+                <p className="font-medium text-sm">{patient.familyHistory ? patient.familyHistory.slice(0, 600) : "No records"}</p>
               </div>
             </div>
           </div>

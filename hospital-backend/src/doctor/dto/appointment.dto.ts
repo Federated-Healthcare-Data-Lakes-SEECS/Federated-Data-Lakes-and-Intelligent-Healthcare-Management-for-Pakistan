@@ -11,6 +11,15 @@ export class PatientInfoDto {
   lastName: string;
 
   @Expose()
+  email: string;
+
+  @Expose()
+  gender: string;
+
+  @Expose()
+  cnic: string;
+
+  @Expose()
   dateOfBirth: Date;
 
   @Expose()

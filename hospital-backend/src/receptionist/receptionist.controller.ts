@@ -110,9 +110,8 @@ export class ReceptionistController {
     @Roles(UserRole.RECEPTIONIST)
     registerPatient(
         @Body() dto: RegisterPatientDto,
-        @GetUser('id') userId: number,
     ) {
-        return this.receptionistService.registerPatient(dto, userId);
+        return this.receptionistService.registerPatient(dto);
     }
 
     /**

@@ -5,7 +5,7 @@ import PatientDashboardPage from "@/components/patient/dashboard/dashboard-page"
 import PatientAppointmentsPage from "@/components/patient/appointments/appointments-page";
 import PatientHistoryPage from "@/components/patient/history/history-page";
 import BookAppointmentPage from "@/components/patient/booking/book-appointment-page";
-import PatientNavigation from "@/components/patient/patient-navigation";
+import EnhancedPatientSidebar from "@/components/patient/enhanced-patient-sidebar";
 
 export default function PatientDashboard() {
   const [currentPage, setCurrentPage] = useState<
@@ -13,8 +13,8 @@ export default function PatientDashboard() {
   >("dashboard");
 
   return (
-    <div className="flex h-screen bg-background">
-      <PatientNavigation currentPage={currentPage} setCurrentPage={setCurrentPage} />
+    <div className="flex h-screen bg-linear-to-br from-emerald-50/50 via-white to-teal-50/50">
+      <EnhancedPatientSidebar currentPage={currentPage} setCurrentPage={setCurrentPage} />
 
       <main className="flex-1 overflow-auto">
         {currentPage === "dashboard" && <PatientDashboardPage />}

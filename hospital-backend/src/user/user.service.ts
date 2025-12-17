@@ -35,13 +35,24 @@ export class UserService {
       throw new NotFoundException('Patient profile not found');
     }
 
+    // Extract CNIC if provided (goes to User table)
+    const { cnic, ...patientData } = dto;
+
+    // Update user's CNIC if provided
+    if (cnic !== undefined) {
+      await this.prisma.user.update({
+        where: { id: userId },
+        data: { cnic }
+      });
+    }
+
     // Update the patient profile
     const updatedPatient = await this.prisma.patient.update({
       where: {
         userId: userId
       },
       data: {
-        ...dto,
+        ...patientData,
         onboardingDone: true
       }
     });

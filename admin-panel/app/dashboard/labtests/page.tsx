@@ -102,7 +102,7 @@ export default function LabTestsPage() {
         {/* Page Header */}
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-blue-600 to-blue-800 bg-clip-text text-transparent">
+            <h1 className="text-3xl font-bold tracking-tight bg-linear-to-r from-blue-600 to-blue-800 bg-clip-text text-transparent">
               Lab Tests
             </h1>
             <p className="text-muted-foreground mt-1">Manage lab test records and templates</p>

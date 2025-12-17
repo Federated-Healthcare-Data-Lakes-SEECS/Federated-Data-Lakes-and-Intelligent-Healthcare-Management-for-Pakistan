@@ -32,7 +32,6 @@ export class AuthService {
                         lastName: dto.lastName,
                         email: dto.email,
                         password: hash,
-                        cnic: dto.cnic,
                         gender: dto.gender,
                         isActive: true,
                         // createdAt and registeredAt will be set by defaults in Prisma schema
@@ -82,9 +81,6 @@ export class AuthService {
                     const target = meta?.target;
                     if (Array.isArray(target) && target.includes('email')) {
                         throw new BadRequestException('Email already in use');
-                    }
-                    if (Array.isArray(target) && target.includes('cnic')) {
-                        throw new BadRequestException('CNIC already in use');
                     }
                     throw new BadRequestException('Unique constraint failed');
                 }

@@ -302,7 +302,7 @@ export class ReceptionistService {
     /**
      * Register a new patient (receptionist functionality)
      */
-    async registerPatient(dto: RegisterPatientDto, receptionistUserId: number) {
+    async registerPatient(dto: RegisterPatientDto) {
         // Check if email already exists
         const existingUser = await this.prisma.user.findUnique({
             where: { email: dto.email },
@@ -358,8 +358,7 @@ export class ReceptionistService {
                     allergies: dto.allergies,
                     medicalHistory: dto.medicalHistory,
                     familyHistory: dto.familyHistory,
-                    onboardingDone: true,
-                    onboardedAt: new Date(),
+                    onboardingDone: false,
                 },
             });
 
@@ -396,8 +395,7 @@ export class ReceptionistService {
                     OR: [
                         { firstName: { contains: searchTerm, mode: 'insensitive' } },
                         { lastName: { contains: searchTerm, mode: 'insensitive' } },
-                        { email: { contains: searchTerm, mode: 'insensitive' } },
-                        { cnic: { contains: searchTerm, mode: 'insensitive' } },
+                        { email: { contains: searchTerm, mode: 'insensitive' } }
                     ],
                 },
             },

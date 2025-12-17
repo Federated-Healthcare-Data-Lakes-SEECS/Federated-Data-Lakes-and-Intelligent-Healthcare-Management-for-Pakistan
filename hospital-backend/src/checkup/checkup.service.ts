@@ -26,7 +26,7 @@ export class CheckupService {
     dto: SaveDraftDto,
     userId: number,
   ): Promise<CheckupResponseDto> {
-    await this.verifyDoctorAccess(dto.appointmentId, userId);
+    await this.verifyDoctorAccess(dto.appointmentId, userId, true);
 
     // Check for existing checkup
     const existingCheckup = await this.prisma.checkup.findUnique({
@@ -61,7 +61,7 @@ export class CheckupService {
     audioMimeType: string | null,
     userId: number,
   ): Promise<CheckupResponseDto> {
-    await this.verifyDoctorAccess(dto.appointmentId, userId);
+    await this.verifyDoctorAccess(dto.appointmentId, userId, true);
 
     // Check for existing checkup
     const existingCheckup = await this.prisma.checkup.findUnique({
@@ -140,12 +140,16 @@ export class CheckupService {
     appointmentId: number,
     userId: number,
   ): Promise<CheckupResponseDto | null> {
-    await this.verifyDoctorAccess(appointmentId, userId);
+    console.log('[CheckupService] getCheckupByAppointmentId called with:', { appointmentId, userId });
+    
+    await this.verifyDoctorAccess(appointmentId, userId, false);
 
     const checkup = await this.prisma.checkup.findUnique({
       where: { appointmentId },
       include: this.getCheckupInclude(),
     });
+
+    console.log('[CheckupService] Fetched checkup by appointment ID:', checkup ? `Found checkup ID ${checkup.id}` : 'No checkup found');
 
     if (!checkup) {
       return null;
@@ -238,6 +242,7 @@ export class CheckupService {
   private async verifyDoctorAccess(
     appointmentId: number,
     userId: number,
+    checkCompletionStatus: boolean = false,
   ): Promise<{ doctorId: number }> {
     const doctor = await this.prisma.doctor.findUnique({
       where: { userId },
@@ -270,14 +275,16 @@ export class CheckupService {
       );
     }
 
-    // Check if appointment is already completed
-    const isOnline = !!appointment.onlineAppointment;
-    const appointmentStatus = isOnline
-      ? appointment.onlineAppointment?.status
-      : appointment.walkinAppointment?.status;
+    // Only check completion status when creating/updating checkups
+    if (checkCompletionStatus) {
+      const isOnline = !!appointment.onlineAppointment;
+      const appointmentStatus = isOnline
+        ? appointment.onlineAppointment?.status
+        : appointment.walkinAppointment?.status;
 
-    if (appointmentStatus === 'COMPLETED') {
-      throw new BadRequestException('Appointment is already completed');
+      if (appointmentStatus === 'COMPLETED') {
+        throw new BadRequestException('Appointment is already completed');
+      }
     }
 
     return { doctorId: doctor.id };
@@ -721,6 +728,7 @@ export class CheckupService {
           id: checkup.appointment.patient.id,
           firstName: checkup.appointment.patient.user.firstName,
           lastName: checkup.appointment.patient.user.lastName || '',
+          gender: checkup.appointment.patient.user.gender,
           dateOfBirth: checkup.appointment.patient.dateOfBirth,
           bloodGroup: checkup.appointment.patient.bloodGroup,
           medicalHistory: checkup.appointment.patient.medicalHistory,

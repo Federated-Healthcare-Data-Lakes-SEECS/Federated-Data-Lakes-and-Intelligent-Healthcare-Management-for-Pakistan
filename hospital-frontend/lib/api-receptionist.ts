@@ -107,6 +107,11 @@ export interface DoctorWithSlots extends DoctorInfo {
   upcomingSlots: AppointmentSlot[];
 }
 
+export interface Department {
+  id: number;
+  name: string;
+}
+
 export interface BookWalkinAppointmentRequest {
   patientId: number;
   slotId: number;
@@ -209,6 +214,51 @@ export async function getAllDoctorsWithSlots(): Promise<DoctorWithSlots[]> {
 }
 
 /**
+ * Get all departments
+ */
+export async function getAllDepartments(): Promise<Department[]> {
+  try {
+    const response = await api.get("/appointment-slots/departments");
+    return response.data;
+  } catch (error: any) {
+    console.error("Error fetching departments:", error);
+    return [];
+  }
+}
+
+/**
+ * Get doctors with slots in next 24 hours (optimized for receptionist booking)
+ * @param searchTerm - Search by doctor name, specialization, or department
+ * @param departmentId - Filter by department
+ */
+export async function getDoctorsNext24Hours(
+  searchTerm?: string,
+  departmentId?: number
+): Promise<DoctorWithSlots[]> {
+  try {
+    const params = new URLSearchParams();
+    if (searchTerm && searchTerm.trim()) {
+      params.append("search", searchTerm.trim());
+    }
+    if (departmentId) {
+      params.append("departmentId", departmentId.toString());
+    }
+
+    const queryString = params.toString();
+    const url = `/appointment-slots/doctors-next-24hours${queryString ? `?${queryString}` : ""}`;
+
+    const response = await api.get(url);
+    return response.data;
+  } catch (error: any) {
+    if (error.response?.status === 404) {
+      return [];
+    }
+    console.error("Error fetching doctors with next 24 hours slots:", error);
+    return [];
+  }
+}
+
+/**
  * Book a walk-in appointment
  */
 export async function bookWalkinAppointment(
@@ -269,7 +319,7 @@ export function formatAppointmentTime(startTime: string, endTime: string): strin
  */
 export function formatAppointmentDate(dateString: string): string {
   const date = new Date(dateString);
-  return date.toLocaleDateString('en-US', {
+  return date.toLocaleDateString('en-PK', {
     weekday: 'short',
     year: 'numeric',
     month: 'short',
@@ -300,6 +350,7 @@ export function groupSlotsByDate(
  * Validate CNIC format (e.g., 12345-1234567-1)
  */
 export function validateCNIC(cnic: string): boolean {
+  if (!cnic) return true; // Allow empty CNIC
   const cnicRegex = /^\d{5}-\d{7}-\d{1}$/;
   return cnicRegex.test(cnic);
 }

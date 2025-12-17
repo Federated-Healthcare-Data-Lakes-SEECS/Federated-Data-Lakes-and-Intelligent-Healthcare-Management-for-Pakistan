@@ -205,6 +205,7 @@ export class PatientResponseDto {
   lastName: string;
   dateOfBirth: Date;
   bloodGroup: string;
+  gender: string;
   medicalHistory?: string;
   allergies?: string;
 }

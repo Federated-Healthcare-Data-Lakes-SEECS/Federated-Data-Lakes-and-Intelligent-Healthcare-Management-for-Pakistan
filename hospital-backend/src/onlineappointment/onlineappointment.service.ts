@@ -129,7 +129,7 @@ export class OnlineAppointmentService {
       ],
     };
 
-    // Add time filter
+    // Add time filter at database level only if specified
     if (query?.timeFilter === 'upcoming') {
       where.slot = { startTime: { gte: now } };
     } else if (query?.timeFilter === 'past') {
@@ -156,6 +156,7 @@ export class OnlineAppointmentService {
         },
         onlineAppointment: true,
         walkinAppointment: true,
+        checkup: true,
       },
       orderBy: {
         slot: {
@@ -164,17 +165,30 @@ export class OnlineAppointmentService {
       },
     });
 
-    // Map and filter appointments
+    // Map appointments and add computed status
     let mappedAppointments = appointments.map((apt) => {
       const isOnline = !!apt.onlineAppointment;
-      const status = isOnline 
+      const dbStatus = isOnline 
         ? apt.onlineAppointment!.status 
         : apt.walkinAppointment!.status;
+      
+      // Determine effective status based on time and database status
+      const isPast = new Date(apt.slot.startTime) < now;
+      let effectiveStatus: 'BOOKED' | 'NOT_ATTENDED' | 'COMPLETED' | 'CANCELLED' | 'CHECKUP_DRAFT' = dbStatus;
+
+      // If appointment is in the past and still marked as BOOKED, treat it as NOT_ATTENDED
+      if (isPast && dbStatus === 'BOOKED') {
+        effectiveStatus = 'NOT_ATTENDED';
+      }
+
+      if (dbStatus === 'BOOKED' && apt.checkup) {
+        effectiveStatus = 'CHECKUP_DRAFT';
+      }
 
       return {
         id: apt.id,
         reason: apt.reason,
-        status,
+        status: effectiveStatus,
         appointmentType: isOnline ? 'online' : 'walk-in',
         startTime: apt.slot.startTime,
         endTime: apt.slot.endTime,
@@ -195,7 +209,7 @@ export class OnlineAppointmentService {
     // Apply status filter if provided and not "all"
     if (query?.status && query.status !== 'all') {
       mappedAppointments = mappedAppointments.filter(
-        (apt) => apt.status === query.status
+        (apt) => apt.status === query.status || (apt.status === 'CHECKUP_DRAFT' && query.status === 'BOOKED')
       );
     }
 

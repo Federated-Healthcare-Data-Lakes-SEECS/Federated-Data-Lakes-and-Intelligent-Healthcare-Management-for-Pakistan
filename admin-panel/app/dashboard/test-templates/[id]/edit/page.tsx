@@ -285,7 +285,7 @@ export default function EditLabTestTemplatePage() {
               Back
             </Button>
             <div>
-              <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-blue-800 bg-clip-text text-transparent">
+              <h1 className="text-2xl font-bold bg-linear-to-r from-blue-600 to-blue-800 bg-clip-text text-transparent">
                 Edit Lab Test Template
               </h1>
               <p className="text-muted-foreground text-sm mt-1">

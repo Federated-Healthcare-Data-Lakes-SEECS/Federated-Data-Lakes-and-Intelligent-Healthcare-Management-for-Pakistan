@@ -15,7 +15,18 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
+import { toast } from "sonner";
 import { 
   Plus, 
   X, 
@@ -95,6 +106,7 @@ export default function CheckupForm({
   const [submitting, setSubmitting] = useState(false);
   const [savingDraft, setSavingDraft] = useState(false);
   const [loadingExisting, setLoadingExisting] = useState(true);
+  const [showResetDialog, setShowResetDialog] = useState(false);
   
   // Existing checkup state
   const [existingCheckup, setExistingCheckup] = useState<CheckupData | null>(null);
@@ -199,7 +211,6 @@ export default function CheckupForm({
   }, [formData, selectedDrugs, selectedLabTests]);
 
   const resetForm = () => {
-    if (!confirm('Reset form? All unsaved changes will be lost.')) return;
     setFormData({
       bloodPressure: "",
       temperature: "",
@@ -213,6 +224,7 @@ export default function CheckupForm({
     });
     setSelectedDrugs([]);
     setSelectedLabTests([]);
+    setShowResetDialog(false);
     audioRecording.resetRecording();
     if (audioEnabled && audioRecording.isSupported) {
       audioRecording.startRecording();
@@ -295,17 +307,18 @@ export default function CheckupForm({
       };
       
       await saveDraft(draftData);
-      alert("Draft saved successfully!");
+      toast.success("Draft saved successfully!");
+      onCheckupComplete?.();
     } catch (error: any) {
       console.error("Error saving draft:", error);
-      alert(error.response?.data?.message || "Failed to save draft. Please try again.");
+      toast.error(error.response?.data?.message || "Failed to save draft. Please try again.");
     } finally {
       setSavingDraft(false);
     }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+    // e.preventDefault();
     if (!isFormValid) return;
     
     // Stop recording if active and get the blob directly
@@ -346,12 +359,12 @@ export default function CheckupForm({
       
       await submitCheckup(checkupData, audioBlob);
       
-      alert("Checkup submitted successfully!");
+      toast.success("Checkup submitted successfully!");
       setIsCompleted(true);
       onCheckupComplete?.();
     } catch (error: any) {
       console.error("Error submitting checkup:", error);
-      alert(error.response?.data?.message || "Failed to submit checkup. Please try again.");
+      toast.error(error.response?.data?.message || "Failed to submit checkup. Please try again.");
       // Restart recording if it was active
       if (audioEnabled && audioRecording.isSupported) {
         audioRecording.startRecording();
@@ -373,7 +386,7 @@ export default function CheckupForm({
 
   if (loadingExisting) {
     return (
-      <div className="flex items-center justify-center min-h-[400px]">
+      <div className="flex items-center justify-center min-h-100">
         <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
       </div>
     );
@@ -392,7 +405,7 @@ export default function CheckupForm({
               This checkup has been submitted and the appointment is marked as completed.
             </p>
             {existingCheckup?.insights && (
-              <Card className="bg-gradient-to-r from-purple-50 to-blue-50 border-purple-200">
+              <Card className="bg-purple-50/50 border-purple-200">
                 <CardHeader className="pb-2">
                   <CardTitle className="text-sm flex items-center gap-2">
                     <Sparkles className="w-4 h-4 text-purple-600" />
@@ -417,9 +430,10 @@ export default function CheckupForm({
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
+    <div className="space-y-6">
+
       {/* Audio Recording Status Bar */}
-      <Card className={`border shadow-sm ${audioRecording.isRecording ? 'border-red-300 bg-red-50/50' : ''}`}>
+      {/* <Card className={`border shadow-sm ${audioRecording.isRecording ? 'border-red-300 bg-red-50/50' : ''}`}>
         <CardContent className="py-4">
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
             <div className="flex items-center gap-3">
@@ -430,8 +444,8 @@ export default function CheckupForm({
                   onCheckedChange={handleAudioToggle}
                   disabled={isCompleted}
                 />
-                <Label htmlFor="audio-recording" className="text-sm font-medium cursor-pointer">
-                  Record Audio
+                <Label htmlFor="audio-recording" className="text-base font-medium cursor-pointer">
+                  Record Audio for AI Analysis
                 </Label>
               </div>
               
@@ -456,7 +470,7 @@ export default function CheckupForm({
                   <>
                     <div className="flex items-center gap-2">
                       <div className={`w-3 h-3 rounded-full ${audioRecording.isPaused ? 'bg-yellow-500' : 'bg-red-500 animate-pulse'}`} />
-                      <span className="text-sm font-mono">{formatDuration(audioRecording.duration)}</span>
+                      <span className="text-base font-mono">{formatDuration(audioRecording.duration)}</span>
                     </div>
                     
                     <div className="flex items-center gap-1">
@@ -501,21 +515,33 @@ export default function CheckupForm({
             )}
           </div>
         </CardContent>
-      </Card>
+      </Card> */}
 
+      
       {/* Patient Info Header */}
-      <Card className="border shadow-sm bg-gradient-to-r from-secondary/40 via-secondary/20 to-secondary/10">
+      <Card className="border shadow-sm bg-linear-to-br from-blue-50/50 to-slate-50/50 border-blue-200">
         <CardContent className="pt-6">
-          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 flex-1">
+          <div className="flex flex-col gap-4">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
               <InfoItem label="Patient" value={`${appointment.patient.firstName} ${appointment.patient.lastName}`} />
               <InfoItem label="Age" value={`${ageYears} yrs`} />
               <InfoItem label="Blood Group" value={appointment.patient.bloodGroup || "N/A"} />
               <InfoItem label="Appt Time" value={new Date(appointment.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} />
             </div>
-            <div className="text-xs md:text-sm text-muted-foreground md:w-48">
-              <p className="line-clamp-3"><strong>History:</strong> {appointment.patient.medicalHistory || 'N/A'}</p>
-              {appointment.patient.allergies && <p className="mt-1"><strong>Allergies:</strong> {appointment.patient.allergies}</p>}
+            <div className="pt-3 border-t border-blue-100 space-y-2">
+              <div className="p-3 rounded-lg bg-white/60 border border-slate-200">
+                <p className="text-sm font-medium text-slate-700 mb-1">Medical History</p>
+                <p className="text-base text-slate-900 leading-relaxed">{appointment.patient.medicalHistory ? appointment.patient.medicalHistory.slice(0, 600) : 'No medical history recorded'}</p>
+              </div>
+              {appointment.patient.allergies && appointment.patient.allergies.trim() && appointment.patient.allergies !== 'None' && (
+                <div className="p-3 rounded-lg bg-orange-50/80 border border-orange-200">
+                  <p className="text-sm font-medium text-orange-800 mb-1 flex items-center gap-1">
+                    <AlertCircle className="w-4 h-4" />
+                    Allergies (Important!)
+                  </p>
+                  <p className="text-base text-orange-900 leading-relaxed font-medium">{appointment.patient.allergies}</p>
+                </div>
+              )}
             </div>
           </div>
         </CardContent>
@@ -535,16 +561,16 @@ export default function CheckupForm({
       <SectionCard icon={<Stethoscope className="w-4 h-4" />} title="Clinical Information">
         <div className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="symptoms" className="text-xs font-medium">Symptoms *</Label>
-            <Textarea id="symptoms" rows={3} required value={formData.symptoms} onChange={(e) => setFormData({ ...formData, symptoms: e.target.value })} placeholder="Describe presenting complaints, onset, duration..." className="resize-none" />
+            <Label htmlFor="symptoms" className="text-sm font-medium">Symptoms *</Label>
+            <Textarea id="symptoms" rows={3} required value={formData.symptoms} onChange={(e) => setFormData({ ...formData, symptoms: e.target.value })} placeholder="Describe presenting complaints, onset, duration..." className="resize-none text-base" />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="diagnosis" className="text-xs font-medium">Diagnosis *</Label>
-            <Textarea id="diagnosis" rows={3} required value={formData.diagnosis} onChange={(e) => setFormData({ ...formData, diagnosis: e.target.value })} placeholder="Primary diagnosis, differentials..." className="resize-none" />
+            <Label htmlFor="diagnosis" className="text-sm font-medium">Diagnosis *</Label>
+            <Textarea id="diagnosis" rows={3} required value={formData.diagnosis} onChange={(e) => setFormData({ ...formData, diagnosis: e.target.value })} placeholder="Primary diagnosis, differentials..." className="resize-none text-base" />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="notes" className="text-xs font-medium">Additional Notes</Label>
-            <Textarea id="notes" rows={2} value={formData.notes} onChange={(e) => setFormData({ ...formData, notes: e.target.value })} placeholder="Plan, follow-up, education, lifestyle advice..." className="resize-none" />
+            <Label htmlFor="notes" className="text-sm font-medium">Additional Notes</Label>
+            <Textarea id="notes" rows={2} value={formData.notes} onChange={(e) => setFormData({ ...formData, notes: e.target.value })} placeholder="Plan, follow-up, education, lifestyle advice..." className="resize-none text-base" />
           </div>
         </div>
       </SectionCard>
@@ -573,17 +599,24 @@ export default function CheckupForm({
 
             <div className="space-y-3">
               {selectedDrugs.length === 0 && (
-                <p className="text-xs text-muted-foreground">No medications added yet.</p>
+                <p className="text-sm text-muted-foreground">No medications added yet.</p>
               )}
               {selectedDrugs.map((drug) => (
-                <div key={drug.drugId} className="p-4 border rounded-lg space-y-3 bg-muted/30">
+                <div key={drug.drugId} className="p-4 border rounded-lg space-y-3 bg-green-50/30 border-green-200">
                   <div className="flex items-center justify-between">
-                    <p className="font-medium text-sm">{drug.name}</p>
+                    <div>
+                      <p className="font-medium text-base">{drug.name}</p>
+                      {(drug.strength || drug.dosageForm) && (
+                        <p className="text-sm text-muted-foreground">
+                          {drug.strength && `${drug.strength}`}{drug.strength && drug.dosageForm && ' • '}{drug.dosageForm}
+                        </p>
+                      )}
+                    </div>
                     <Button type="button" variant="ghost" size="sm" onClick={() => handleRemoveDrug(drug.drugId)}>
                       <X className="w-4 h-4" />
                     </Button>
                   </div>
-                  <div className="grid grid-cols-2 md:grid-cols-5 gap-2 text-xs">
+                  <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
                     <MiniInput label="Dosage" value={drug.dosage} onChange={v => handleUpdateDrug(drug.drugId, 'dosage', v)} placeholder="500mg" />
                     <MiniInput label="Freq / Day" type="number" value={drug.dailyFrequency || ''} onChange={v => handleUpdateDrug(drug.drugId, 'dailyFrequency', parseInt(v) || 0)} placeholder="2" />
                     <MiniInput label="Duration" type="number" value={drug.durationDays || ''} onChange={v => handleUpdateDrug(drug.drugId, 'durationDays', parseInt(v) || 0)} placeholder="5" suffix="days" />
@@ -595,8 +628,8 @@ export default function CheckupForm({
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="additionalMedications" className="text-xs">Additional Medications</Label>
-              <Textarea id="additionalMedications" rows={2} value={formData.additionalMedications} onChange={(e) => setFormData({ ...formData, additionalMedications: e.target.value })} placeholder="Any additional medications not in the list..." className="resize-none" />
+              <Label htmlFor="additionalMedications" className="text-sm font-medium">Additional Medications</Label>
+              <Textarea id="additionalMedications" rows={2} value={formData.additionalMedications} onChange={(e) => setFormData({ ...formData, additionalMedications: e.target.value })} placeholder="Any additional medications not in the list..." className="resize-none text-base" />
             </div>
           </div>
         )}
@@ -626,10 +659,10 @@ export default function CheckupForm({
 
             <div className="flex flex-wrap gap-2">
               {selectedLabTests.length === 0 && (
-                <p className="text-xs text-muted-foreground">No tests added yet.</p>
+                <p className="text-sm text-muted-foreground">No tests added yet.</p>
               )}
               {selectedLabTests.map((test) => (
-                <Badge key={test.testId} variant="secondary" className="gap-1 pr-1">
+                <Badge key={test.testId} variant="secondary" className="gap-1 pr-1 text-sm py-1.5 px-3">
                   {test.name}
                   <X className="w-3 h-3 cursor-pointer" onClick={() => handleRemoveTest(test.testId)} />
                 </Badge>
@@ -637,56 +670,152 @@ export default function CheckupForm({
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="additionalTests" className="text-xs">Additional Tests</Label>
-              <Textarea id="additionalTests" rows={2} value={formData.additionalTests} onChange={(e) => setFormData({ ...formData, additionalTests: e.target.value })} placeholder="Any additional tests not in the list..." className="resize-none" />
+              <Label htmlFor="additionalTests" className="text-sm font-medium">Additional Tests</Label>
+              <Textarea id="additionalTests" rows={2} value={formData.additionalTests} onChange={(e) => setFormData({ ...formData, additionalTests: e.target.value })} placeholder="Any additional tests not in the list..." className="resize-none text-base" />
             </div>
           </div>
         )}
       </SectionCard>
 
       {/* Sticky Action Bar */}
-      <div className="h-12" />
-      <div className="sticky bottom-4 left-0 right-0 z-10">
-        <div className="flex flex-col sm:flex-row gap-2 justify-end bg-background/90 backdrop-blur supports-[backdrop-filter]:bg-background/70 p-3 rounded-lg border shadow-sm">
-          <div className="flex gap-2 flex-wrap">
-            <Button type="button" variant="ghost" size="sm" onClick={resetForm} disabled={!isDirty || submitting || savingDraft}>
-              <Undo2 className="w-4 h-4" /> Reset
+      <div className="sticky bottom-2 left-0 right-0 z-10 mt-6">
+        <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-3 bg-white/95 backdrop-blur-sm border border-slate-200 p-4 rounded-xl shadow-lg">
+          {/* Audio Recording Controls - Left Side */}
+          <div className="flex items-center gap-3 flex-wrap">
+            <div className="flex items-center gap-2">
+              <Switch
+                id="audio-recording"
+                checked={audioEnabled}
+                onCheckedChange={handleAudioToggle}
+                disabled={isCompleted}
+              />
+              <Label htmlFor="audio-recording" className="text-sm font-medium cursor-pointer">
+                AI Audio
+              </Label>
+            </div>
+            
+            {audioEnabled && !audioRecording.isSupported && (
+              <Badge variant="destructive" className="gap-1 text-xs">
+                <AlertCircle className="w-3 h-3" />
+                Not Supported
+              </Badge>
+            )}
+            
+            {audioEnabled && audioRecording.error && (
+              <Badge variant="destructive" className="gap-1 text-xs">
+                <AlertCircle className="w-3 h-3" />
+                Error
+              </Badge>
+            )}
+            
+            {audioEnabled && audioRecording.isSupported && (
+              <>
+                {audioRecording.isRecording && (
+                  <>
+                    <div className="flex items-center gap-2">
+                      <div className={`w-2.5 h-2.5 rounded-full ${audioRecording.isPaused ? 'bg-yellow-500' : 'bg-red-500 animate-pulse'}`} />
+                      <span className="text-sm font-mono">{formatDuration(audioRecording.duration)}</span>
+                    </div>
+                    
+                    <div className="flex items-center gap-1">
+                      {audioRecording.isPaused ? (
+                        <Button type="button" size="sm" variant="ghost" onClick={audioRecording.resumeRecording} className="h-8 w-8 p-0">
+                          <Play className="w-3.5 h-3.5" />
+                        </Button>
+                      ) : (
+                        <Button type="button" size="sm" variant="ghost" onClick={audioRecording.pauseRecording} className="h-8 w-8 p-0">
+                          <Pause className="w-3.5 h-3.5" />
+                        </Button>
+                      )}
+                      <Button type="button" size="sm" variant="ghost" onClick={audioRecording.stopRecording} className="h-8 w-8 p-0">
+                        <Square className="w-3.5 h-3.5" />
+                      </Button>
+                    </div>
+                  </>
+                )}
+                
+                {!audioRecording.isRecording && audioRecording.audioBlob && (
+                  <>
+                    <Badge variant="secondary" className="gap-1 text-xs">
+                      <Mic className="w-3 h-3" />
+                      Saved ({formatDuration(audioRecording.duration)})
+                    </Badge>
+                    <Button type="button" size="sm" variant="ghost" onClick={audioRecording.resetRecording} className="h-8 px-2">
+                      <X className="w-3.5 h-3.5" />
+                    </Button>
+                    <Button type="button" size="sm" variant="outline" onClick={audioRecording.startRecording} className="h-8 text-xs">
+                      Re-record
+                    </Button>
+                  </>
+                )}
+                
+                {!audioRecording.isRecording && !audioRecording.audioBlob && (
+                  <Button type="button" size="sm" variant="outline" onClick={audioRecording.startRecording} className="gap-1.5 h-8 text-xs">
+                    <Mic className="w-3.5 h-3.5" />
+                    Start
+                  </Button>
+                )}
+              </>
+            )}
+          </div>
+
+          {/* Action Buttons - Right Side */}
+          <div className="flex gap-2 flex-wrap justify-end w-full lg:w-auto">
+            <Button type="button" variant="ghost" onClick={() => setShowResetDialog(true)} disabled={!isDirty || submitting || savingDraft}>
+              <Undo2 className="w-4 h-4 mr-2" /> Reset
             </Button>
-            <Button type="button" variant="outline" size="sm" onClick={handleSaveDraft} disabled={!isDirty || submitting || savingDraft}>
-              {savingDraft ? <Loader2 className="w-4 h-4 animate-spin" /> : <ClipboardList className="w-4 h-4" />} 
+            <Button type="button" variant="outline" onClick={handleSaveDraft} disabled={!isDirty || submitting || savingDraft}>
+              {savingDraft ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <ClipboardList className="w-4 h-4 mr-2" />} 
               {savingDraft ? 'Saving...' : 'Save Draft'}
             </Button>
-            <Button type="submit" size="sm" disabled={!isFormValid || submitting || savingDraft} className="gap-2">
+            <Button type="button" onClick={() => handleSubmit({} as React.FormEvent)} disabled={!isFormValid || submitting || savingDraft} className="gap-2 bg-blue-600 hover:bg-blue-700">
               {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
               {submitting ? 'Submitting...' : 'Submit Checkup'}
             </Button>
           </div>
         </div>
       </div>
-    </form>
+      
+      <AlertDialog open={showResetDialog} onOpenChange={setShowResetDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Reset Form</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to reset the form? All unsaved changes will be lost and cannot be recovered.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={resetForm} className="bg-red-600 hover:bg-red-700">
+              Reset Form
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </div>
   );
 }
 
 // Reusable section wrapper
 function SectionCard({ icon, title, children, collapsible = false, isOpen = true, onToggle }: { icon: React.ReactNode; title: string; children: React.ReactNode; collapsible?: boolean; isOpen?: boolean; onToggle?: () => void }) {
   return (
-    <Card className="border-0 shadow-sm">
-      <CardHeader className="pb-2">
+    <Card className="border shadow-sm">
+      <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-md bg-primary/10 flex items-center justify-center text-primary">
+            <div className="w-9 h-9 rounded-md bg-primary/10 flex items-center justify-center text-primary">
               {icon}
             </div>
-            <CardTitle className="text-sm font-semibold tracking-wide">{title}</CardTitle>
+            <CardTitle className="text-base font-semibold tracking-wide">{title}</CardTitle>
           </div>
           {collapsible && (
-            <Button type="button" variant="ghost" size="sm" onClick={onToggle} className="text-xs">
+            <Button type="button" variant="ghost" size="sm" onClick={onToggle} className="text-sm">
               {isOpen ? 'Hide' : 'Show'}
             </Button>
           )}
         </div>
       </CardHeader>
-      <CardContent className="pt-1 space-y-4">{children}</CardContent>
+      <CardContent className="space-y-4">{children}</CardContent>
     </Card>
   );
 }
@@ -694,19 +823,19 @@ function SectionCard({ icon, title, children, collapsible = false, isOpen = true
 function VitalInput({ id, label, value, onChange, placeholder }: { id: string; label: string; value: string; onChange: (v: string) => void; placeholder?: string }) {
   return (
     <div className="space-y-1.5">
-      <Label htmlFor={id} className="text-xs font-medium">{label}</Label>
-      <Input id={id} value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} className="h-9" />
+      <Label htmlFor={id} className="text-sm font-medium">{label}</Label>
+      <Input id={id} value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} className="h-10 text-base" />
     </div>
   );
 }
 
 function MiniInput({ label, value, onChange, placeholder, type = 'text', suffix }: { label: string; value: any; onChange: (v: string) => void; placeholder?: string; type?: string; suffix?: string }) {
   return (
-    <div className="space-y-1">
-      <Label className="text-[10px] uppercase tracking-wide font-medium">{label}</Label>
+    <div className="space-y-1.5">
+      <Label className="text-xs uppercase tracking-wide font-medium">{label}</Label>
       <div className="flex items-center gap-1">
-        <Input type={type} value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} className="h-8 text-xs" />
-        {suffix && <span className="text-[10px] text-muted-foreground">{suffix}</span>}
+        <Input type={type} value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} className="h-9 text-sm" />
+        {suffix && <span className="text-xs text-muted-foreground whitespace-nowrap">{suffix}</span>}
       </div>
     </div>
   );
@@ -714,9 +843,9 @@ function MiniInput({ label, value, onChange, placeholder, type = 'text', suffix 
 
 function InfoItem({ label, value }: { label: string; value: string }) {
   return (
-    <div className="space-y-0.5">
-      <p className="text-[11px] uppercase tracking-wide text-muted-foreground font-medium">{label}</p>
-      <p className="text-sm font-semibold text-foreground truncate" title={value}>{value}</p>
+    <div className="space-y-1">
+      <p className="text-xs uppercase tracking-wide text-muted-foreground font-medium">{label}</p>
+      <p className="text-base font-semibold text-foreground truncate" title={value}>{value}</p>
     </div>
   );
 }

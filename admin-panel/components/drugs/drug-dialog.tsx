@@ -183,7 +183,7 @@ export function DrugDialog({ open, onOpenChange, onSave, onError }: DrugDialogPr
                   value={formData.dosageForm}
                   onValueChange={(value) => setFormData({ ...formData, dosageForm: value })}
                 >
-                  <SelectTrigger>
+                  <SelectTrigger className="w-full">
                     <SelectValue placeholder="Select dosage form" />
                   </SelectTrigger>
                   <SelectContent>

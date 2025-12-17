@@ -16,7 +16,7 @@ import { plainToInstance } from 'class-transformer';
 export class PatientService {
     constructor(private prisma: PrismaService) {}
 
-    async registerPatient(dto: RegisterPatientDto, _creatorId: number): Promise<PatientResponseDto> {
+    async registerPatient(dto: RegisterPatientDto): Promise<PatientResponseDto> {
         // 1. Check for existing user with same email or CNIC
         const existingUser = await this.prisma.user.findFirst({
             where: {
@@ -346,6 +346,7 @@ export class PatientService {
                 appointment: {
                     patientId: patient.id,
                 },
+                isDraft: false,
             },
         });
 
@@ -388,13 +389,13 @@ export class PatientService {
                     { 
                         AND: [
                             { onlineAppointment: { isNot: null } },
-                            { onlineAppointment: { status: { not: 'COMPLETED' } } }
+                            { onlineAppointment: { status: 'BOOKED' } }
                         ]
                     },
                     { 
                         AND: [
                             { walkinAppointment: { isNot: null } },
-                            { walkinAppointment: { status: { not: 'COMPLETED' } } }
+                            { walkinAppointment: { status: 'BOOKED' } }
                         ]
                     },
                 ],
@@ -424,6 +425,8 @@ export class PatientService {
             },
             take: limit,
         });
+
+        appointments.sort((a, b) => a.slot.startTime.getTime() - b.slot.startTime.getTime());
 
         // Map appointments and determine type
         return appointments.map((apt) => {
@@ -463,6 +466,7 @@ export class PatientService {
                 appointment: {
                     patientId: patient.id,
                 },
+                isDraft: false,
             },
             include: {
                 appointment: {

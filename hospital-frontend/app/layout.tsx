@@ -3,11 +3,12 @@ import type { Metadata } from "next"
 import "./globals.css"
 import Providers from "@/components/providers"
 import { Suspense } from "react"
+import { LoadingScreen } from "@/components/loading-screen"
 
 export const metadata: Metadata = {
-  title: "v0 App",
-  description: "Created with v0",
-  generator: "v0.app",
+  title: "HealthCare Hospital",
+  description: "Created with HealthCare Hospital",
+  generator: "HealthCare Hospital",
 }
 
 export default function RootLayout({
@@ -18,7 +19,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body>
-        <Suspense fallback={<div>Loading...</div>}>
+        <Suspense fallback={<LoadingScreen />}>
           <Providers>{children}</Providers>
         </Suspense>
       </body>

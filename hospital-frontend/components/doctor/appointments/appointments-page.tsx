@@ -1,13 +1,14 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { getBookedAppointments, getDrugs, getLabTests } from "@/lib/api/doctor";
+import { getBookedAppointments, getDrugs, getLabTests, cancelAppointment } from "@/lib/api/doctor";
 import type { UpcomingAppointment, Drug, LabTest } from "@/lib/api/doctor";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import AppointmentsList from "./appointments-list";
 import CheckupForm from "./checkup-form";
 import { ArrowLeft, FileText } from "lucide-react";
+import { toast } from "sonner";
 
 export default function AppointmentsPage() {
   const [appointments, setAppointments] = useState<UpcomingAppointment[]>([]);
@@ -45,10 +46,19 @@ export default function AppointmentsPage() {
     fetchData();
   }, []);
 
-  const handleCancelAppointment = (id: number) => {
-    setAppointments(prev => prev.map(a => a.id === id ? { ...a, status: "cancelled" } : a));
-    if (selectedAppointment?.id === id) {
-      setSelectedAppointment(prev => prev ? { ...prev, status: "cancelled" } : prev);
+  const handleCancelAppointment = async (id: number) => {
+    try {
+      await cancelAppointment(id);
+      toast.success("Appointment cancelled successfully");
+      
+      // Update local state to reflect cancellation
+      setAppointments(prev => prev.map(a => a.id === id ? { ...a, status: "cancelled" } : a));
+      if (selectedAppointment?.id === id) {
+        setSelectedAppointment(prev => prev ? { ...prev, status: "cancelled" } : prev);
+      }
+    } catch (error: any) {
+      console.error("Error cancelling appointment:", error);
+      toast.error(error.response?.data?.message || "Failed to cancel appointment");
     }
   };
 
@@ -65,7 +75,7 @@ export default function AppointmentsPage() {
   if (loading) {
     return (
       <div className="p-6 md:p-8 space-y-6">
-        <div className="flex items-center justify-center min-h-[400px]">
+        <div className="flex items-center justify-center min-h-100">
           <p className="text-muted-foreground">Loading appointments...</p>
         </div>
       </div>
@@ -75,7 +85,7 @@ export default function AppointmentsPage() {
   if (error) {
     return (
       <div className="p-6 md:p-8 space-y-6">
-        <div className="flex items-center justify-center min-h-[400px]">
+        <div className="flex items-center justify-center min-h-100">
           <p className="text-destructive">{error}</p>
         </div>
       </div>
@@ -92,7 +102,7 @@ export default function AppointmentsPage() {
       {viewMode === "list" && (
         <Card className="border-0 shadow-sm animate-in fade-in slide-in-from-bottom-2">
           <CardHeader className="flex flex-row items-center justify-between gap-4">
-            <CardTitle className="text-lg md:text-xl">Booked Appointments</CardTitle>
+            <CardTitle className="text-lg md:text-xl">All Appointments</CardTitle>
             {selectedAppointment && (
               <Button size="sm" variant="outline" onClick={() => setViewMode("checkup")} className="gap-2">
                 <FileText className="w-4 h-4" /> Resume Checkup

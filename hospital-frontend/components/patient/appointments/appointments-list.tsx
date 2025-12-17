@@ -21,7 +21,7 @@ import {
 import { toast } from "sonner";
 
 interface AppointmentsListProps {
-  filter: "all" | "upcoming" | "completed";
+  filter: "all" | "upcoming" | "completed" | "cancelled";
 }
 
 function AppointmentsList({ filter }: AppointmentsListProps) {
@@ -39,12 +39,23 @@ function AppointmentsList({ filter }: AppointmentsListProps) {
         let status: string = "all";
         let timeFilter: "all" | "upcoming" | "past" = "all";
 
+        // Set correct filters based on tab
         if (filter === "upcoming") {
+          // Show only upcoming booked appointments
           status = "BOOKED";
           timeFilter = "upcoming";
         } else if (filter === "completed") {
+          // Show completed appointments (both explicitly completed and past booked ones)
           status = "COMPLETED";
-          timeFilter = "past";
+          timeFilter = "all"; // Don't filter by time, backend will handle it
+        } else if (filter === "cancelled") {
+          // Show only cancelled appointments
+          status = "CANCELLED";
+          timeFilter = "all";
+        } else {
+          // Show all appointments
+          status = "all";
+          timeFilter = "all";
         }
 
         const data = await getMyAppointments(status, timeFilter);
@@ -105,6 +116,8 @@ function AppointmentsList({ filter }: AppointmentsListProps) {
       return <Badge className="bg-blue-500">Confirmed</Badge>;
     } else if (status === "NOT_ATTENDED") {
       return <Badge variant="outline">Not Attended</Badge>;
+    } else if (status === "CHECKUP_DRAFT") {
+      return <Badge className="bg-yellow-500">Checkup Drafted</Badge>;
     }
     return <Badge variant="outline">{status}</Badge>;
   };
@@ -126,6 +139,7 @@ function AppointmentsList({ filter }: AppointmentsListProps) {
           <p className="text-sm text-muted-foreground mt-2">
             {filter === "upcoming" && "You don't have any upcoming appointments scheduled."}
             {filter === "completed" && "You don't have any completed appointments yet."}
+            {filter === "cancelled" && "You don't have any cancelled appointments."}
             {filter === "all" && "You haven't booked any appointments yet."}
           </p>
         </div>
@@ -135,7 +149,7 @@ function AppointmentsList({ filter }: AppointmentsListProps) {
 
   return (
     <>
-      <div className="space-y-4">
+      <div className="space-y-3 max-h-[calc(100vh-350px)] overflow-y-auto">
         {appointments.map((appointment) => {
           const appointmentDate = new Date(appointment.startTime);
           const canCancel = canCancelAppointment(appointment.startTime);
@@ -143,60 +157,53 @@ function AppointmentsList({ filter }: AppointmentsListProps) {
           return (
             <div
               key={appointment.id}
-              className="p-4 border rounded-lg space-y-3 hover:bg-accent/50 transition-colors"
+              className="p-4 border rounded-lg bg-slate-50 hover:bg-emerald-50/50 transition-all"
             >
-              <div className="flex items-start justify-between">
-                <div className="space-y-2 flex-1">
-                  <div className="flex items-center gap-3 flex-wrap">
-                    <h3 className="font-semibold text-lg">
+              <div className="flex items-start gap-3">
+                <div className="w-10 h-10 rounded-full bg-emerald-600 flex items-center justify-center shrink-0">
+                  <span className="text-sm font-semibold text-white">
+                    {`${appointment.doctor.firstName[0]}${appointment.doctor.lastName[0]}`}
+                  </span>
+                </div>
+                <div className="flex-1 space-y-2">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h3 className="font-semibold text-base">
                       Dr. {appointment.doctor.firstName} {appointment.doctor.lastName}
                     </h3>
                     {getStatusBadge(appointment.status, appointment.startTime)}
                     <Badge 
                       variant="outline" 
-                      className={appointment.appointmentType === "online" ? "bg-blue-50 text-blue-700 border-blue-200" : "bg-purple-50 text-purple-700 border-purple-200"}
+                      className={appointment.appointmentType === "online" ? "bg-blue-50 text-blue-700 border-blue-200 text-xs" : "bg-purple-50 text-purple-700 border-purple-200 text-xs"}
                     >
                       {appointment.appointmentType === "online" ? "Online" : "Walk-in"}
                     </Badge>
                   </div>
                   
-                  <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted-foreground">
-                    <span className="flex items-center gap-1">
-                      <Stethoscope className="h-3.5 w-3.5" />
-                      {appointment.doctor.departmentName}
-                    </span>
-                    <span className="flex items-center gap-1">
+                  <div className="flex flex-wrap gap-3 text-sm text-muted-foreground">
+                    <span className="flex items-center gap-1.5">
                       <Stethoscope className="h-3.5 w-3.5" />
                       {appointment.doctor.specialization}
                     </span>
-                  </div>
-
-                  <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm">
-                    <span className="flex items-center gap-1">
+                    <span className="flex items-center gap-1.5">
                       <Calendar className="h-3.5 w-3.5" />
-                      {appointmentDate.toLocaleDateString('en-US', {
+                      {appointmentDate.toLocaleDateString('en-PK', {
                         weekday: 'short',
-                        year: 'numeric',
                         month: 'short',
                         day: 'numeric',
                       })}
                     </span>
-                    <span className="flex items-center gap-1">
+                    <span className="flex items-center gap-1.5">
                       <Clock className="h-3.5 w-3.5" />
                       {new Date(appointment.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} - {new Date(appointment.endTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                     </span>
                   </div>
 
-                  {appointment.reason && (
-                    <div className="mt-2 p-2 bg-muted rounded text-sm">
-                      <span className="font-medium">Reason: </span>
+                  {/* {appointment.reason && (
+                    <div className="mt-2 p-2 bg-white rounded border text-sm">
+                      <span className="font-medium text-muted-foreground">Reason: </span>
                       {appointment.reason}
                     </div>
-                  )}
-
-                  <p className="text-xs text-muted-foreground">
-                    Booked on: {new Date(appointment.createdAt).toLocaleDateString()}
-                  </p>
+                  )} */}
                 </div>
 
                 {canCancel && appointment.appointmentType === "online" && appointment.status === "BOOKED" && (
@@ -204,7 +211,7 @@ function AppointmentsList({ filter }: AppointmentsListProps) {
                     variant="destructive"
                     size="sm"
                     onClick={() => handleCancelAppointment(appointment.id)}
-                    className="ml-4"
+                    className="shrink-0"
                   >
                     Cancel
                   </Button>
