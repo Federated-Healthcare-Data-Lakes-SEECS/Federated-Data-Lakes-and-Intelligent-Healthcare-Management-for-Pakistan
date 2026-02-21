@@ -18,6 +18,9 @@ import { LabTestTemplateModule } from './labtesttemplate/labtesttemplate.module'
 import { CheckupModule } from './checkup/checkup.module';
 import { OnlineAppointmentModule } from './onlineappointment/onlineappointment.module';
 import { AppointmentSlotModule } from './appointmentslot/appointmentslot.module';
+import { PatientLabTestModule } from './patientlabtest/patientlabtest.module';
+import { LabTechnicianModule } from './labtechnician/labtechnician.module';
+import { PathologistModule } from './pathologist/pathologist.module';
 
 @Module({
   imports: [
@@ -40,6 +43,9 @@ import { AppointmentSlotModule } from './appointmentslot/appointmentslot.module'
     CheckupModule,
     OnlineAppointmentModule,
     AppointmentSlotModule,
+    PatientLabTestModule,
+    LabTechnicianModule,
+    PathologistModule,
   ],
   controllers: [AppController],
   providers: [AppService],

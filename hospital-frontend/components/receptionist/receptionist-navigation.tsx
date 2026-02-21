@@ -1,15 +1,15 @@
 "use client";
 
 import { useState } from "react";
-import { Home, UserPlus, Calendar, ClipboardList, LogOut, ChevronLeft, Clipboard } from 'lucide-react';
+import { Home, UserPlus, Calendar, ClipboardList, LogOut, ChevronLeft, Clipboard, TestTube } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { clearToken } from "@/lib/auth";
 import { useRouter } from "next/navigation";
 
 interface ReceptionistNavigationProps {
-  currentPage: "dashboard" | "register" | "book" | "appointments";
-  setCurrentPage: (page: "dashboard" | "register" | "book" | "appointments") => void;
+  currentPage: "dashboard" | "register" | "book" | "appointments" | "labtest-lookup";
+  setCurrentPage: (page: "dashboard" | "register" | "book" | "appointments" | "labtest-lookup") => void;
 }
 
 export default function ReceptionistNavigation({
@@ -39,6 +39,11 @@ export default function ReceptionistNavigation({
       id: "appointments",
       label: "My Appointments",
       icon: ClipboardList,
+    },
+    {
+      id: "labtest-lookup",
+      label: "Lab Test Lookup",
+      icon: TestTube,
     },
   ];
 
@@ -95,7 +100,7 @@ export default function ReceptionistNavigation({
             <Button
               key={item.id}
               onClick={() =>
-                setCurrentPage(item.id as "dashboard" | "register" | "book" | "appointments")
+                setCurrentPage(item.id as "dashboard" | "register" | "book" | "appointments" | "labtest-lookup")
               }
               className={cn(
                 "w-full transition-all duration-200",

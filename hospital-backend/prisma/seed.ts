@@ -73,6 +73,24 @@ async function main() {
     },
   });
 
+  await prisma.role.upsert({
+    where: { name: 'LAB_TECHNICIAN' },
+    update: {},
+    create: {
+      name: 'LAB_TECHNICIAN',
+      description: 'Lab Technician',
+    },
+  });
+
+  await prisma.role.upsert({
+    where: { name: 'PATHOLOGIST' },
+    update: {},
+    create: {
+      name: 'PATHOLOGIST',
+      description: 'Pathologist',
+    },
+  });
+
   // Create standard departments
   const standardDepartments = [
     {
@@ -564,6 +582,194 @@ async function main() {
         phoneNumber: receptionist.phoneNumber,
         experience: receptionist.experience,
         qualification: receptionist.qualification,
+      },
+    });
+  }
+
+  // Get lab technician role
+  const labTechnicianRole = await prisma.role.findUnique({
+    where: { name: 'LAB_TECHNICIAN' },
+  });
+
+  // Create multiple lab technicians
+  const labTechnicians = [
+    {
+      email: 'labtechnician@hospital.com',
+      firstName: 'Hamza',
+      lastName: 'Sheikh',
+      cnic: '42501-1122334-4',
+      gender: 'MALE',
+      departmentId: cardiologyDept.id,
+      specialization: 'Clinical Chemistry',
+      experience: 8,
+      qualification: 'BS Medical Laboratory Technology',
+    },
+    {
+      email: 'zahid.labtech@hospital.com',
+      firstName: 'Zahid',
+      lastName: 'Mahmood',
+      cnic: '42601-2233445-5',
+      gender: 'MALE',
+      departmentId: neurologyDept.id,
+      specialization: 'Hematology',
+      experience: 6,
+      qualification: 'BS Medical Laboratory Technology',
+    },
+    {
+      email: 'fatima.labtech@hospital.com',
+      firstName: 'Fatima',
+      lastName: 'Noor',
+      cnic: '42701-3344556-6',
+      gender: 'FEMALE',
+      departmentId: orthopedicsDept.id,
+      specialization: 'Microbiology',
+      experience: 5,
+      qualification: 'BS Microbiology',
+    },
+    {
+      email: 'ayesha.labtech@hospital.com',
+      firstName: 'Ayesha',
+      lastName: 'Zafar',
+      cnic: '42801-4455667-7',
+      gender: 'FEMALE',
+      departmentId: pediatricsDept.id,
+      specialization: 'Immunology',
+      experience: 4,
+      qualification: 'BS Medical Laboratory Technology',
+    },
+  ];
+
+  for (const labTech of labTechnicians) {
+    const labTechUser = await prisma.user.upsert({
+      where: { email: labTech.email },
+      update: {},
+      create: {
+        firstName: labTech.firstName,
+        lastName: labTech.lastName,
+        email: labTech.email,
+        cnic: labTech.cnic,
+        password: defaultPassword,
+        gender: labTech.gender as any,
+      },
+    });
+
+    await prisma.userRole.upsert({
+      where: {
+        userId_roleId: {
+          userId: labTechUser.id,
+          roleId: labTechnicianRole!.id,
+        },
+      },
+      update: {},
+      create: {
+        userId: labTechUser.id,
+        roleId: labTechnicianRole!.id,
+      },
+    });
+
+    await prisma.labTechnician.upsert({
+      where: { userId: labTechUser.id },
+      update: {},
+      create: {
+        userId: labTechUser.id,
+        departmentId: labTech.departmentId,
+        specialization: labTech.specialization,
+        experience: labTech.experience,
+        qualification: labTech.qualification,
+      },
+    });
+  }
+
+  // Get pathologist role
+  const pathologistRole = await prisma.role.findUnique({
+    where: { name: 'PATHOLOGIST' },
+  });
+
+  // Create multiple pathologists
+  const pathologists = [
+    {
+      email: 'pathologist@hospital.com',
+      firstName: 'Dr. Imran',
+      lastName: 'Qureshi',
+      cnic: '42901-5566778-8',
+      gender: 'MALE',
+      departmentId: cardiologyDept.id,
+      specialization: 'Clinical Pathology',
+      experience: 12,
+      qualification: 'MBBS, MPhil Pathology',
+    },
+    {
+      email: 'dr.sadia.path@hospital.com',
+      firstName: 'Dr. Sadia',
+      lastName: 'Akhtar',
+      cnic: '42102-6677889-9',
+      gender: 'FEMALE',
+      departmentId: neurologyDept.id,
+      specialization: 'Histopathology',
+      experience: 10,
+      qualification: 'MBBS, FCPS Histopathology',
+    },
+    {
+      email: 'dr.kashif.path@hospital.com',
+      firstName: 'Dr. Kashif',
+      lastName: 'Iqbal',
+      cnic: '42202-7788990-0',
+      gender: 'MALE',
+      departmentId: orthopedicsDept.id,
+      specialization: 'Chemical Pathology',
+      experience: 15,
+      qualification: 'MBBS, FCPS Chemical Pathology',
+    },
+    {
+      email: 'dr.nida.path@hospital.com',
+      firstName: 'Dr. Nida',
+      lastName: 'Hassan',
+      cnic: '42302-8899001-1',
+      gender: 'FEMALE',
+      departmentId: gynecologyDept.id,
+      specialization: 'Cytopathology',
+      experience: 9,
+      qualification: 'MBBS, MPhil Pathology',
+    },
+  ];
+
+  for (const pathologist of pathologists) {
+    const pathologistUser = await prisma.user.upsert({
+      where: { email: pathologist.email },
+      update: {},
+      create: {
+        firstName: pathologist.firstName,
+        lastName: pathologist.lastName,
+        email: pathologist.email,
+        cnic: pathologist.cnic,
+        password: defaultPassword,
+        gender: pathologist.gender as any,
+      },
+    });
+
+    await prisma.userRole.upsert({
+      where: {
+        userId_roleId: {
+          userId: pathologistUser.id,
+          roleId: pathologistRole!.id,
+        },
+      },
+      update: {},
+      create: {
+        userId: pathologistUser.id,
+        roleId: pathologistRole!.id,
+      },
+    });
+
+    await prisma.pathologist.upsert({
+      where: { userId: pathologistUser.id },
+      update: {},
+      create: {
+        userId: pathologistUser.id,
+        departmentId: pathologist.departmentId,
+        specialization: pathologist.specialization,
+        experience: pathologist.experience,
+        qualification: pathologist.qualification,
       },
     });
   }

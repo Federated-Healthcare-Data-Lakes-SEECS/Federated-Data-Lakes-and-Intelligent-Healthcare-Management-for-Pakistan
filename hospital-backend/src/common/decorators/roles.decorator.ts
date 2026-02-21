@@ -5,6 +5,8 @@ export enum UserRole {
   DOCTOR = 'DOCTOR',
   PATIENT = 'PATIENT',
   RECEPTIONIST = 'RECEPTIONIST',
+  LAB_TECHNICIAN = 'LAB_TECHNICIAN',
+  PATHOLOGIST = 'PATHOLOGIST',
 }
 
 export const ROLES_KEY = 'roles';

@@ -354,7 +354,7 @@ export class PatientService {
         const pendingLabTestsCount = await this.prisma.patientLabTest.count({
             where: {
                 patientId: patient.id,
-                status: 'PENDING',
+                status: 'ORDERED',
             },
         });
 

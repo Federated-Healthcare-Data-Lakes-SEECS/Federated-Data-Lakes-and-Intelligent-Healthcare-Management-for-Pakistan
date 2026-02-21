@@ -476,20 +476,32 @@ model LabTestTemplate {
 }
 
 enum PatientLabTestStatus {
-  PENDING
-  COMPLETED
-  CANCELLED
+  ORDERED
+  SAMPLE_COLLECTED
+  PERFORMED
+  RESULTS_ADDED
+  UNDER_REVIEW
+  APPROVED
+  REJECTED
 }
 
 model PatientLabTest {
   id         Int      @id @default(autoincrement())
   patientId  Int      @map("patient_id")
   labTestId  Int      @map("lab_test_id")
-  result     String?  @db.Text
+  result     Json?    
+  lab_technicianNotes String? @map("lab_technician_notes") @db.Text
+  pathologistNotes    String? @map("pathologist_notes") @db.Text
+  
+  orderedAt  DateTime @default(now()) @map("ordered_at")
+  sampleCollectedAt DateTime? @map("sample_collected_at")
   performedAt DateTime? @map("performed_at")
-  status     PatientLabTestStatus @default(PENDING)
+  resultsAddedAt DateTime? @map("results_added_at")
+  reviewedAt DateTime? @map("reviewed_at")
+  status     PatientLabTestStatus @default(ORDERED)
 
   labTechnicianAssigned Int? @map("lab_technician_assigned")
+  pathologistAssigned Int? @map("pathologist_assigned")
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 

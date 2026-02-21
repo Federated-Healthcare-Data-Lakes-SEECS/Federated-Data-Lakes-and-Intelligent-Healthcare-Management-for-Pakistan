@@ -5,11 +5,12 @@ import ReceptionistDashboardPage from "@/components/receptionist/dashboard/dashb
 import RegisterPatientPage from "@/components/receptionist/register-patient/register-patient-page";
 import BookAppointmentPage from "@/components/receptionist/book-appointment/book-appointment-page";
 import AppointmentsPage from "@/components/receptionist/appointments/appointments-page";
+import LabTestLookupPage from "@/components/receptionist/labtest-lookup/labtest-lookup-page";
 import ReceptionistNavigation from "@/components/receptionist/receptionist-navigation";
 
 export default function ReceptionistDashboard() {
   const [currentPage, setCurrentPage] = useState<
-    "dashboard" | "register" | "book" | "appointments"
+    "dashboard" | "register" | "book" | "appointments" | "labtest-lookup"
   >("dashboard");
 
   return (
@@ -21,6 +22,7 @@ export default function ReceptionistDashboard() {
         {currentPage === "register" && <RegisterPatientPage />}
         {currentPage === "book" && <BookAppointmentPage />}
         {currentPage === "appointments" && <AppointmentsPage />}
+        {currentPage === "labtest-lookup" && <LabTestLookupPage />}
       </main>
     </div>
   );

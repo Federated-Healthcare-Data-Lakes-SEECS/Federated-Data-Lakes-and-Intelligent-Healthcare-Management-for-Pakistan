@@ -103,7 +103,26 @@ export interface LabTechnician {
   email: string
   cnic: string
   gender: Gender
-  phoneNumber?: string
+  specialization: string
+  qualification: string
+  experience: number
+  departmentName: string
+  isActive: boolean
+  createdAt: Date
+}
+
+export interface Pathologist {
+  id: number
+  firstName: string
+  lastName: string
+  email: string
+  cnic: string
+  gender: Gender
+  specialization: string
+  qualification: string
+  experience: number
+  departmentName: string
+  isActive: boolean
   createdAt: Date
 }
 
@@ -189,6 +208,30 @@ export interface DrugFormData {
   description: string
   supplier: string
   isActive: boolean
+}
+
+export interface LabTechnicianFormData {
+  firstName: string
+  lastName: string
+  email: string
+  gender: Gender
+  cnic: string
+  departmentName: string
+  specialization: string
+  experience: number
+  qualification: string
+}
+
+export interface PathologistFormData {
+  firstName: string
+  lastName: string
+  email: string
+  gender: Gender
+  cnic: string
+  departmentName: string
+  specialization: string
+  experience: number
+  qualification: string
 }
 
 export interface LabTestFormData {

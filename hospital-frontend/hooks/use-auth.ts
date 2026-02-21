@@ -4,7 +4,7 @@ import useSWR, { mutate } from "swr"
 import { getToken, clearToken } from "@/lib/auth"
 import { api } from "@/lib/api"
 
-export type Role = "PATIENT" | "DOCTOR" | "RECEPTIONIST" | "ADMIN"
+export type Role = "PATIENT" | "DOCTOR" | "RECEPTIONIST" | "ADMIN" | "LAB_TECHNICIAN" | "PATHOLOGIST"
 
 export interface UserProfile {
   id: number
@@ -28,6 +28,8 @@ export interface UserProfile {
   }
   doctor?: Record<string, any>
   receptionist?: Record<string, any>
+  labTechnician?: Record<string, any>
+  pathologist?: Record<string, any>
 }
 
 const fetcher = (url: string) => api.get(url).then((r) => r.data)
@@ -43,6 +45,8 @@ export function useAuth() {
   const isAdmin = roles.includes("ADMIN")
   const isPatient = roles.includes("PATIENT")
   const isDoctor = roles.includes("DOCTOR")
+  const isLabTechnician = roles.includes("LAB_TECHNICIAN")
+  const isPathologist = roles.includes("PATHOLOGIST")
 
   function logout() {
     clearToken()
@@ -59,6 +63,8 @@ export function useAuth() {
     isAdmin,
     isPatient,
     isDoctor,
+    isLabTechnician,
+    isPathologist,
     logout,
   }
 }

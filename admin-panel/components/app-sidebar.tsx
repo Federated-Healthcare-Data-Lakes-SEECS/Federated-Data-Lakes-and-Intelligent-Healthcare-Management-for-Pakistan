@@ -1,6 +1,6 @@
 "use client"
 
-import { Building2, Users, UserCheck, Heart, Pill, FlaskConical, FileText, Activity, LogOut } from "lucide-react"
+import { Building2, Users, UserCheck, Heart, Pill, FlaskConical, FileText, Activity, LogOut, TestTube, Microscope } from "lucide-react"
 import { usePathname, useRouter } from "next/navigation"
 import { useAuth } from "@/contexts/AuthContext"
 
@@ -41,6 +41,18 @@ const items = [
     url: "/dashboard/receptionists",
     icon: UserCheck,
     description: "Front Desk Staff"
+  },
+  {
+    title: "Lab Technicians",
+    url: "/dashboard/lab-technicians",
+    icon: TestTube,
+    description: "Lab Staff"
+  },
+  {
+    title: "Pathologists",
+    url: "/dashboard/pathologists",
+    icon: Microscope,
+    description: "Pathology Specialists"
   },
   {
     title: "Patients",

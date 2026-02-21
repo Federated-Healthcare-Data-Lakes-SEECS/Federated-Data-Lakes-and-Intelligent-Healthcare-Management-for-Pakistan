@@ -1,21 +1,21 @@
 "use client";
 
-import { Home, Calendar, Clock, FileText, LogOut, ChevronLeft, CalendarPlus, Heart, TestTube } from 'lucide-react';
+import { useState } from "react";
+import { Home, ClipboardCheck, History, LogOut, ChevronLeft, Microscope } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { useState } from "react";
+import { clearToken } from "@/lib/auth";
 import { useRouter } from "next/navigation";
-import { clearToken } from '@/lib/auth';
 
-interface EnhancedPatientSidebarProps {
-  currentPage: "dashboard" | "appointments" | "history" | "book" | "lab-tests";
-  setCurrentPage: (page: "dashboard" | "appointments" | "history" | "book" | "lab-tests") => void;
+interface PathologistNavigationProps {
+  currentPage: "dashboard" | "review" | "history";
+  setCurrentPage: (page: "dashboard" | "review" | "history") => void;
 }
 
-export default function EnhancedPatientSidebar({
+export default function PathologistNavigation({
   currentPage,
   setCurrentPage,
-}: EnhancedPatientSidebarProps) {
+}: PathologistNavigationProps) {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const router = useRouter();
 
@@ -26,24 +26,14 @@ export default function EnhancedPatientSidebar({
       icon: Home,
     },
     {
-      id: "book",
-      label: "Book Appointment",
-      icon: CalendarPlus,
-    },
-    {
-      id: "appointments",
-      label: "My Appointments",
-      icon: Calendar,
-    },
-    {
-      id: "lab-tests",
-      label: "Lab Tests",
-      icon: TestTube,
+      id: "review",
+      label: "Pending Review",
+      icon: ClipboardCheck,
     },
     {
       id: "history",
-      label: "Medical History",
-      icon: FileText,
+      label: "Review History",
+      icon: History,
     },
   ];
 
@@ -66,12 +56,12 @@ export default function EnhancedPatientSidebar({
             <h1 className="text-2xl font-bold text-slate-900">
               Medicare
             </h1>
-            <p className="text-sm text-emerald-600 font-medium">Patient Portal</p>
+            <p className="text-sm text-purple-600 font-medium">Pathologist Portal</p>
           </div>
         ) : (
           <div className="flex justify-center">
-            <div className="w-10 h-10 rounded-full bg-emerald-600 flex items-center justify-center">
-              <Heart className="w-5 h-5 text-white" />
+            <div className="w-10 h-10 rounded-full bg-purple-600 flex items-center justify-center">
+              <Microscope className="w-5 h-5 text-white" />
             </div>
           </div>
         )}
@@ -83,11 +73,11 @@ export default function EnhancedPatientSidebar({
         variant="ghost"
         size="icon"
         className={cn(
-          "absolute -right-3 top-24 h-6 w-6 rounded-full border border-slate-200 bg-white shadow-sm hover:bg-emerald-50 transition-all z-10",
+          "absolute -right-3 top-24 h-6 w-6 rounded-full border border-slate-200 bg-white shadow-sm hover:bg-purple-50 transition-all z-10",
           isCollapsed && "rotate-180"
         )}
       >
-        <ChevronLeft className="h-3 w-3 text-emerald-600" />
+        <ChevronLeft className="h-3 w-3 text-purple-600" />
       </Button>
 
       {/* Navigation */}
@@ -100,13 +90,13 @@ export default function EnhancedPatientSidebar({
             <Button
               key={item.id}
               onClick={() =>
-                setCurrentPage(item.id as "dashboard" | "appointments" | "history" | "book" | "lab-tests")
+                setCurrentPage(item.id as "dashboard" | "review" | "history")
               }
               className={cn(
                 "w-full transition-all duration-200",
                 isCollapsed ? "justify-center px-2" : "justify-start gap-3",
                 isActive
-                  ? "bg-emerald-600 text-white shadow-sm hover:bg-emerald-700"
+                  ? "bg-purple-600 text-white shadow-sm hover:bg-purple-700"
                   : "text-slate-700 hover:bg-slate-100 hover:text-slate-900"
               )}
               variant="ghost"
