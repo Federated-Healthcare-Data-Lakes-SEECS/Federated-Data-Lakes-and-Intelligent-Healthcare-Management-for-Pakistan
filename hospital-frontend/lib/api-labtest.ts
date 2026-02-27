@@ -116,7 +116,8 @@ export interface FormField {
   unit?: string;
   min?: number;
   max?: number;
-  normalRange?: string;
+  normalMin?: number | null;
+  normalMax?: number | null;
   placeholder?: string;
 }
 
@@ -182,6 +183,14 @@ export async function getMyLabTestDetails(id: number): Promise<PatientLabTest> {
  */
 export async function getAssignedLabTests(): Promise<PatientLabTest[]> {
   const response = await api.get("/patient-lab-tests/technician/assigned");
+  return response.data;
+}
+
+/**
+ * Get all completed lab tests (lab technician)
+ */
+export async function getCompletedLabTests(): Promise<PatientLabTest[]> {
+  const response = await api.get("/patient-lab-tests/technician/completed");
   return response.data;
 }
 

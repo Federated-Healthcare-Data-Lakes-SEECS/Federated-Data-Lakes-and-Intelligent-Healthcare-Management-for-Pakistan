@@ -1,25 +1,47 @@
 import {
   Controller,
+  Get,
   Post,
   Body,
-  Param,
   Patch,
-  ParseIntPipe,
+  Param,
+  Query,
+  UseGuards,
 } from '@nestjs/common';
+import { GetUser } from '../auth/decorators';
+import { JwtGuard } from '../auth/guards';
 import { OnlineAppointmentService } from './onlineappointment.service';
-import { CreateOnlineAppointmentDto } from './dto/onlineappointment.dto';
+import { BookOnlineAppointmentDto, GetAppointmentsQueryDto } from './dto';
+import { Roles, UserRole } from '../common/decorators/roles.decorator';
+import { RolesGuard } from '../common/guards/roles.guard';
 
-@Controller('onlineappointments')
+@UseGuards(JwtGuard, RolesGuard)
+@Roles(UserRole.PATIENT)
+@Controller('online-appointments')
 export class OnlineAppointmentController {
-  constructor(private readonly appointmentService: OnlineAppointmentService) {}
+  constructor(private onlineAppointmentService: OnlineAppointmentService) {}
 
-  @Post()
-  create(@Body() body: CreateOnlineAppointmentDto) {
-    return this.appointmentService.createOnlineAppointment(body);
+  @Post('book')
+  bookAppointment(
+    @Body() dto: BookOnlineAppointmentDto,
+    @GetUser('id') userId: number,
+  ) {
+    return this.onlineAppointmentService.bookAppointment(dto, userId);
   }
 
-  @Patch('cancel/:id')
-  cancel(@Param('id', ParseIntPipe) id: number) {
-    return this.appointmentService.cancelOnlineAppointment(id);
+  @Get('my-appointments')
+  getMyAppointments(
+    @GetUser('id') userId: number,
+    @Query() query: GetAppointmentsQueryDto,
+  ) {
+    return this.onlineAppointmentService.getMyAppointments(userId, query);
+  }
+
+  @Patch(':id/cancel')
+  cancelAppointment(
+    @Param('id') id: string,
+    @GetUser('id') userId: number,
+  ) {
+    return this.onlineAppointmentService.cancelAppointment(parseInt(id), userId);
   }
 }

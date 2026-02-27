@@ -233,24 +233,58 @@ export default function ReviewHistoryPage() {
                               {section.title}
                             </h5>
                             <div className="grid grid-cols-2 gap-2">
-                              {section.fields?.map((field: any, fIdx: number) => (
-                                <div
-                                  key={fIdx}
-                                  className="flex justify-between p-2 bg-white rounded border"
-                                >
-                                  <span className="text-sm text-muted-foreground">
-                                    {field.label}
-                                  </span>
-                                  <span className="font-medium text-sm">
-                                    {selectedTest.result?.[field.name] || "—"}
-                                    {field.unit && (
-                                      <span className="text-muted-foreground ml-1">
-                                        {field.unit}
+                              {section.fields?.map((field: any, fIdx: number) => {
+                                const resultVal = selectedTest.result?.[field.name];
+                                const numVal = parseFloat(resultVal);
+                                const hasMin = field.normalMin != null;
+                                const hasMax = field.normalMax != null;
+                                const hasRange = hasMin || hasMax;
+                                let rangeStatus: "normal" | "low" | "high" | "none" = "none";
+                                if (hasRange && !isNaN(numVal)) {
+                                  if (hasMin && hasMax) {
+                                    rangeStatus = numVal < field.normalMin ? "low" : numVal > field.normalMax ? "high" : "normal";
+                                  } else if (hasMax) {
+                                    rangeStatus = numVal > field.normalMax ? "high" : "normal";
+                                  } else if (hasMin) {
+                                    rangeStatus = numVal < field.normalMin ? "low" : "normal";
+                                  }
+                                }
+                                const statusColor =
+                                  rangeStatus === "normal" ? "border-emerald-200 bg-emerald-50/50"
+                                  : rangeStatus === "low" ? "border-amber-200 bg-amber-50/50"
+                                  : rangeStatus === "high" ? "border-rose-200 bg-rose-50/50"
+                                  : "";
+                                const rangeLabel =
+                                  hasMin && hasMax ? `${field.normalMin} – ${field.normalMax}`
+                                  : hasMax ? `≤ ${field.normalMax}`
+                                  : hasMin ? `≥ ${field.normalMin}`
+                                  : "";
+                                return (
+                                  <div
+                                    key={fIdx}
+                                    className={`flex justify-between items-center p-2 bg-white rounded border ${statusColor}`}
+                                  >
+                                    <div className="flex flex-col">
+                                      <span className="text-sm text-muted-foreground">
+                                        {field.label}
                                       </span>
-                                    )}
-                                  </span>
-                                </div>
-                              ))}
+                                      {rangeLabel && (
+                                        <span className="text-[10px] text-muted-foreground">
+                                          Normal: {rangeLabel}{field.unit ? ` ${field.unit}` : ""}
+                                        </span>
+                                      )}
+                                    </div>
+                                    <span className="font-medium text-sm">
+                                      {resultVal || "—"}
+                                      {field.unit && (
+                                        <span className="text-muted-foreground ml-1">
+                                          {field.unit}
+                                        </span>
+                                      )}
+                                    </span>
+                                  </div>
+                                );
+                              })}
                             </div>
                           </div>
                         )

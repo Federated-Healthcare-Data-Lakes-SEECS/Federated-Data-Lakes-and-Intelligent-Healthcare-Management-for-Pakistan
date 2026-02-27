@@ -29,7 +29,8 @@ type Field = {
   label: string
   type: string
   unit: string
-  referenceRange: string
+  normalMin: string
+  normalMax: string
 }
 
 type Section = {
@@ -54,7 +55,7 @@ export default function CreateLabTestTemplatePage() {
         {
           name: "",
           fields: [
-            { label: "", type: "text", unit: "", referenceRange: "" },
+            { label: "", type: "text", unit: "", normalMin: "", normalMax: "" },
           ],
           notes: "",
         },
@@ -90,7 +91,7 @@ export default function CreateLabTestTemplatePage() {
         sections: [
           {
             name: "",
-            fields: [{ label: "", type: "text", unit: "", referenceRange: "" }],
+            fields: [{ label: "", type: "text", unit: "", normalMin: "", normalMax: "" }],
             notes: "",
           },
         ],
@@ -115,7 +116,7 @@ export default function CreateLabTestTemplatePage() {
     const newSIdx = newProfiles[pIdx].sections.length
     newProfiles[pIdx].sections.push({
       name: "",
-      fields: [{ label: "", type: "text", unit: "", referenceRange: "" }],
+      fields: [{ label: "", type: "text", unit: "", normalMin: "", normalMax: "" }],
       notes: "",
     })
     setProfiles(newProfiles)
@@ -137,7 +138,7 @@ export default function CreateLabTestTemplatePage() {
   // Field handlers
   const addField = (pIdx: number, sIdx: number) => {
     const newProfiles = [...profiles]
-    newProfiles[pIdx].sections[sIdx].fields.push({ label: "", type: "text", unit: "", referenceRange: "" })
+    newProfiles[pIdx].sections[sIdx].fields.push({ label: "", type: "text", unit: "", normalMin: "", normalMax: "" })
     setProfiles(newProfiles)
   }
 
@@ -403,7 +404,8 @@ export default function CreateLabTestTemplatePage() {
                               <div className="col-span-3">Field Label</div>
                               <div className="col-span-2">Type</div>
                               <div className="col-span-2">Unit</div>
-                              <div className="col-span-4">Reference Range</div>
+                              <div className="col-span-2">Normal Min</div>
+                              <div className="col-span-2">Normal Max</div>
                               <div className="col-span-1"></div>
                             </div>
 
@@ -444,11 +446,23 @@ export default function CreateLabTestTemplatePage() {
                                     className="text-sm bg-white/50 border-slate-200/50"
                                   />
                                 </div>
-                                <div className="col-span-4">
+                                <div className="col-span-2">
                                   <Input
-                                    placeholder="e.g., 12.0 - 16.0"
-                                    value={field.referenceRange}
-                                    onChange={e => updateField(pIdx, sIdx, fIdx, { ...field, referenceRange: e.target.value })}
+                                    type="number"
+                                    step="any"
+                                    placeholder="e.g., 12.0"
+                                    value={field.normalMin}
+                                    onChange={e => updateField(pIdx, sIdx, fIdx, { ...field, normalMin: e.target.value })}
+                                    className="text-sm bg-white/50 border-slate-200/50"
+                                  />
+                                </div>
+                                <div className="col-span-2">
+                                  <Input
+                                    type="number"
+                                    step="any"
+                                    placeholder="e.g., 16.0"
+                                    value={field.normalMax}
+                                    onChange={e => updateField(pIdx, sIdx, fIdx, { ...field, normalMax: e.target.value })}
                                     className="text-sm bg-white/50 border-slate-200/50"
                                   />
                                 </div>

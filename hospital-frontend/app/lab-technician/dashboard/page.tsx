@@ -3,6 +3,7 @@
 import { useState } from "react";
 import LabTechnicianDashboardPage from "@/components/lab-technician/dashboard/dashboard-page";
 import AssignedTestsPage from "@/components/lab-technician/assigned-tests-page";
+import CompletedTestsPage from "@/components/lab-technician/completed-tests-page";
 import LabTechnicianNavigation from "@/components/lab-technician/lab-technician-navigation";
 
 export default function LabTechnicianDashboard() {
@@ -17,6 +18,7 @@ export default function LabTechnicianDashboard() {
       <main className="flex-1 overflow-auto">
         {currentPage === "dashboard" && <LabTechnicianDashboardPage />}
         {currentPage === "assigned" && <AssignedTestsPage />}
+        {currentPage === "completed" && <CompletedTestsPage />}
       </main>
     </div>
   );

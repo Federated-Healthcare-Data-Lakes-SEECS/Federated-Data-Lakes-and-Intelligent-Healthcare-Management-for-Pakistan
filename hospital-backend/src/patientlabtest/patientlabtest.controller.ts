@@ -98,6 +98,16 @@ export class PatientLabTestController {
   }
 
   /**
+   * Get all completed lab tests (lab technician)
+   */
+  @Get('technician/completed')
+  @UseGuards(RolesGuard)
+  @Roles(UserRole.LAB_TECHNICIAN)
+  getCompletedLabTests(@GetUser('id') userId: number) {
+    return this.patientLabTestService.getCompletedLabTests(userId);
+  }
+
+  /**
    * Get lab test details (lab technician)
    */
   @Get('technician/:id')

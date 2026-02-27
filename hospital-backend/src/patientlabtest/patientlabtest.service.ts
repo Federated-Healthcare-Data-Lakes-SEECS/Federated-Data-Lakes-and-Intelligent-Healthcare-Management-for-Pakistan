@@ -254,6 +254,46 @@ export class PatientLabTestService {
   }
 
   /**
+   * Get all completed lab tests for a lab technician (submitted results that are under review or approved)
+   */
+  async getCompletedLabTests(userId: number): Promise<PatientLabTestResponseDto[]> {
+    const labTechnician = await this.prisma.labTechnician.findUnique({
+      where: { userId },
+    });
+
+    if (!labTechnician) {
+      throw new NotFoundException('Lab technician not found');
+    }
+
+    const labTests = await this.prisma.patientLabTest.findMany({
+      where: {
+        labTechnicianAssigned: labTechnician.id,
+        status: {
+          in: ['UNDER_REVIEW', 'APPROVED'],
+        },
+      },
+      include: {
+        patient: { include: { user: true } },
+        labTest: {
+          include: { 
+            department: true,
+            template: true,
+          },
+        },
+        labTechnician: {
+          include: { 
+            user: true,
+            department: true,
+          },
+        },
+      },
+      orderBy: { resultsAddedAt: 'desc' },
+    });
+
+    return this.mapToResponseDtos(labTests);
+  }
+
+  /**
    * Get lab test details for lab technician
    */
   async getLabTestDetailsForTechnician(patientLabTestId: number, userId: number): Promise<PatientLabTestResponseDto> {

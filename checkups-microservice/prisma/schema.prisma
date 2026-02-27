@@ -35,7 +35,7 @@ model User {
   userRoles          UserRole[]
   doctor             Doctor?
   patient            Patient?            @relation(name: "User")
-  labTechnician     LabTechnician?
+  labTechnician      LabTechnician?
   receptionist       Receptionist?
   pathologist        Pathologist?
   @@map("users")
@@ -202,7 +202,7 @@ model Pathologist {
 
 model Drug {
   id              Int    @id @default(autoincrement())
-  name            String @unique @db.VarChar(255)
+  name            String @db.VarChar(255)
   formulaName     String @db.VarChar(255)
   chemicalFormula String @db.VarChar(255)
   strength        String @db.VarChar(100)
@@ -210,13 +210,16 @@ model Drug {
   description     String @db.Text
   supplier        String @db.VarChar(255)
 
-  isActive Boolean @default(true) @map("is_active")
+  isActive  Boolean   @default(true) @map("is_active")
+  deletedAt DateTime? @map("deleted_at")
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
   // Relations
   medications   Medication[]
+
+  @@map("drugs")
 }
 
 model LabTest {
@@ -224,9 +227,10 @@ model LabTest {
   name         String  @db.VarChar(255)
   description  String? @db.Text
   departmentId Int     @map("department_id")
-  templateId Int    @map("template_id")
+  templateId   Int     @map("template_id")
 
-  isActive Boolean @default(true) @map("is_active")
+  isActive  Boolean   @default(true) @map("is_active")
+  deletedAt DateTime? @map("deleted_at")
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
@@ -234,8 +238,10 @@ model LabTest {
   // Relations
   department          Department           @relation(fields: [departmentId], references: [id])
   recommendedLabTests RecommendedLabTest[]
-  template            LabTestTemplate     @relation(fields: [templateId], references: [id])
+  template            LabTestTemplate      @relation(fields: [templateId], references: [id])
   patientLabTests     PatientLabTest[]
+
+  @@map("lab_tests")
 }
 
 model DoctorSchedule {
@@ -346,6 +352,10 @@ model Checkup {
   symptoms                    String  @db.Text
   diagnosis                   String  @db.Text
   notes                       String? @db.Text
+  insights                    String? @db.Text // AI-generated insights from audio analysis (legacy)
+  gapAnalysis                 String? @map("gap_analysis") @db.Text // Gap analysis from AI - additional details found in conversation
+
+  isDraft                     Boolean @default(false) @map("is_draft") // Draft status
 
   prescriptionId              Int     @unique @map("prescription_id")
   checkupTestRecommendationId Int     @unique @map("checkup_test_recommendation_id")
@@ -357,6 +367,36 @@ model Checkup {
   appointment               Appointment               @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
   prescription              Prescription              @relation(fields: [prescriptionId], references: [id], onDelete: Cascade)
   checkupTestRecommendation CheckupTestRecommendation @relation(fields: [checkupTestRecommendationId], references: [id], onDelete: Cascade)
+  audio                     CheckupAudio?
+}
+
+enum AudioProcessingStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
+model CheckupAudio {
+  id               Int                   @id @default(autoincrement())
+  checkupId        Int                   @unique @map("checkup_id")
+  audioData        Bytes                 @map("audio_data") // Store audio binary in Postgres
+  mimeType         String                @map("mime_type") @db.VarChar(100)
+  fileSize         Int                   @map("file_size") // Size in bytes
+  duration         Float?                // Duration in seconds (optional)
+  processingStatus AudioProcessingStatus @default(PENDING) @map("processing_status")
+  transcription    String?               @db.Text // Original transcription of the audio consultation
+  extractedInfo    Json?                 @map("extracted_info") // Structured clinical data extracted from audio
+  processedAt      DateTime?             @map("processed_at")
+  errorMessage     String?               @map("error_message") @db.Text
+
+  createdAt        DateTime              @default(now()) @map("created_at")
+  updatedAt        DateTime              @updatedAt @map("updated_at")
+
+  // Relations
+  checkup          Checkup               @relation(fields: [checkupId], references: [id], onDelete: Cascade)
+
+  @@map("checkup_audios")
 }
 
 model Prescription {
@@ -417,36 +457,51 @@ model RecommendedLabTest {
 
 
 model LabTestTemplate {
-  id          Int      @id @default(autoincrement())
-  name        String   @unique @db.VarChar(255)
-  description String?  @db.Text
-  version     String   @db.VarChar(50)
-  formStructure Json  @map("form_structure")
-  isActive    Boolean  @default(true) @map("is_active")
+  id            Int      @id @default(autoincrement())
+  name          String   @db.VarChar(255)
+  description   String?  @db.Text
+  version       String   @db.VarChar(50)
+  formStructure Json     @map("form_structure")
+  isActive      Boolean  @default(true) @map("is_active")
+  deletedAt     DateTime? @map("deleted_at")
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
+  
   @@unique([name, version])
+  @@map("lab_test_templates")
 
   // Relations
   labTests LabTest[]
 }
 
 enum PatientLabTestStatus {
-  PENDING
-  COMPLETED
-  CANCELLED
+  ORDERED
+  SAMPLE_COLLECTED
+  PERFORMED
+  RESULTS_ADDED
+  UNDER_REVIEW
+  APPROVED
+  REJECTED
 }
 
 model PatientLabTest {
   id         Int      @id @default(autoincrement())
   patientId  Int      @map("patient_id")
   labTestId  Int      @map("lab_test_id")
-  result     String?  @db.Text
+  result     Json?    
+  lab_technicianNotes String? @map("lab_technician_notes") @db.Text
+  pathologistNotes    String? @map("pathologist_notes") @db.Text
+  
+  orderedAt  DateTime @default(now()) @map("ordered_at")
+  sampleCollectedAt DateTime? @map("sample_collected_at")
   performedAt DateTime? @map("performed_at")
-  status     PatientLabTestStatus @default(PENDING)
+  resultsAddedAt DateTime? @map("results_added_at")
+  reviewedAt DateTime? @map("reviewed_at")
+  status     PatientLabTestStatus @default(ORDERED)
 
   labTechnicianAssigned Int? @map("lab_technician_assigned")
+  pathologistAssigned Int? @map("pathologist_assigned")
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 

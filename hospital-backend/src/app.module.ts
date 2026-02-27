@@ -1,6 +1,5 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
-import { ScheduleModule } from '@nestjs/schedule';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { AuthModule } from './auth/auth.module';
@@ -10,25 +9,28 @@ import { DepartmentModule } from './department/department.module';
 import { DoctorModule } from './doctor/doctor.module';
 import { ReceptionistModule } from './receptionist/receptionist.module';
 import { PatientModule } from './patient/patient.module';
-import { DoctorScheduleModule } from './doctorschedule/doctorschedule.module';
 import { DrugModule } from './drug/drug.module';
-import { LabTestModule } from './labtest/labtest.module';
-import { HttpModule } from '@nestjs/axios';
-import { LabTestTemplateModule } from './labtesttemplate/labtesttemplate.module';
-import { CheckupModule } from './checkup/checkup.module';
-import { OnlineAppointmentModule } from './onlineappointment/onlineappointment.module';
-import { AppointmentSlotModule } from './appointmentslot/appointmentslot.module';
-import { PatientLabTestModule } from './patientlabtest/patientlabtest.module';
 import { LabTechnicianModule } from './labtechnician/labtechnician.module';
 import { PathologistModule } from './pathologist/pathologist.module';
+import { ProxyModule } from './proxy/proxy.module';
+import {
+  CheckupProxyController,
+  AudioProcessingProxyController,
+  DoctorScheduleProxyController,
+  AppointmentSlotProxyController,
+  OnlineAppointmentProxyController,
+} from './proxy/checkup-proxy.controller';
+import {
+  LabTestProxyController,
+  LabTestTemplateProxyController,
+  PatientLabTestProxyController,
+} from './proxy/labtest-proxy.controller';
 
 @Module({
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
     }),
-    ScheduleModule.forRoot(),
-    HttpModule,
     AuthModule,
     PrismaModule,
     UserModule,
@@ -36,18 +38,24 @@ import { PathologistModule } from './pathologist/pathologist.module';
     DoctorModule,
     ReceptionistModule,
     PatientModule,
-    DoctorScheduleModule,
     DrugModule,
-    LabTestModule,
-    LabTestTemplateModule,
-    CheckupModule,
-    OnlineAppointmentModule,
-    AppointmentSlotModule,
-    PatientLabTestModule,
     LabTechnicianModule,
     PathologistModule,
+    ProxyModule,
   ],
-  controllers: [AppController],
+  controllers: [
+    AppController,
+    // Checkup microservice proxies
+    CheckupProxyController,
+    AudioProcessingProxyController,
+    DoctorScheduleProxyController,
+    AppointmentSlotProxyController,
+    OnlineAppointmentProxyController,
+    // Lab test microservice proxies
+    LabTestProxyController,
+    LabTestTemplateProxyController,
+    PatientLabTestProxyController,
+  ],
   providers: [AppService],
 })
 export class AppModule {}

@@ -30,6 +30,11 @@ export default function LabTechnicianNavigation({
       label: "Assigned Tests",
       icon: TestTube,
     },
+    {
+      id: "completed",
+      label: "Completed Tests",
+      icon: CheckCircle,
+    },
   ];
 
   const handleLogout = () => {

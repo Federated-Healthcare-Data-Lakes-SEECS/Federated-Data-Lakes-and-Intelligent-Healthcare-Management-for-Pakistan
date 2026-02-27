@@ -1107,23 +1107,23 @@ async function main() {
           {
             title: 'Red Blood Cells',
             fields: [
-              { name: 'rbc_count', label: 'RBC Count', type: 'number', unit: 'million/μL', normalRange: '4.5-5.5' },
-              { name: 'hemoglobin', label: 'Hemoglobin', type: 'number', unit: 'g/dL', normalRange: '13.5-17.5' },
-              { name: 'hematocrit', label: 'Hematocrit', type: 'number', unit: '%', normalRange: '38.8-50.0' },
+              { name: 'rbc_count', label: 'RBC Count', type: 'number', unit: 'million/μL', normalMin: 4.5, normalMax: 5.5 },
+              { name: 'hemoglobin', label: 'Hemoglobin', type: 'number', unit: 'g/dL', normalMin: 13.5, normalMax: 17.5 },
+              { name: 'hematocrit', label: 'Hematocrit', type: 'number', unit: '%', normalMin: 38.8, normalMax: 50.0 },
             ],
           },
           {
             title: 'White Blood Cells',
             fields: [
-              { name: 'wbc_count', label: 'WBC Count', type: 'number', unit: 'thousand/μL', normalRange: '4.5-11.0' },
-              { name: 'neutrophils', label: 'Neutrophils', type: 'number', unit: '%', normalRange: '40-70' },
-              { name: 'lymphocytes', label: 'Lymphocytes', type: 'number', unit: '%', normalRange: '20-40' },
+              { name: 'wbc_count', label: 'WBC Count', type: 'number', unit: 'thousand/μL', normalMin: 4.5, normalMax: 11.0 },
+              { name: 'neutrophils', label: 'Neutrophils', type: 'number', unit: '%', normalMin: 40, normalMax: 70 },
+              { name: 'lymphocytes', label: 'Lymphocytes', type: 'number', unit: '%', normalMin: 20, normalMax: 40 },
             ],
           },
           {
             title: 'Platelets',
             fields: [
-              { name: 'platelet_count', label: 'Platelet Count', type: 'number', unit: 'thousand/μL', normalRange: '150-400' },
+              { name: 'platelet_count', label: 'Platelet Count', type: 'number', unit: 'thousand/μL', normalMin: 150, normalMax: 400 },
             ],
           },
         ],
@@ -1148,10 +1148,10 @@ async function main() {
           {
             title: 'Lipid Profile',
             fields: [
-              { name: 'total_cholesterol', label: 'Total Cholesterol', type: 'number', unit: 'mg/dL', normalRange: '<200' },
-              { name: 'ldl_cholesterol', label: 'LDL Cholesterol', type: 'number', unit: 'mg/dL', normalRange: '<100' },
-              { name: 'hdl_cholesterol', label: 'HDL Cholesterol', type: 'number', unit: 'mg/dL', normalRange: '>40' },
-              { name: 'triglycerides', label: 'Triglycerides', type: 'number', unit: 'mg/dL', normalRange: '<150' },
+              { name: 'total_cholesterol', label: 'Total Cholesterol', type: 'number', unit: 'mg/dL', normalMax: 200 },
+              { name: 'ldl_cholesterol', label: 'LDL Cholesterol', type: 'number', unit: 'mg/dL', normalMax: 100 },
+              { name: 'hdl_cholesterol', label: 'HDL Cholesterol', type: 'number', unit: 'mg/dL', normalMin: 40 },
+              { name: 'triglycerides', label: 'Triglycerides', type: 'number', unit: 'mg/dL', normalMax: 150 },
             ],
           },
         ],
@@ -1176,8 +1176,8 @@ async function main() {
           {
             title: 'Glucose Levels',
             fields: [
-              { name: 'fasting_glucose', label: 'Fasting Glucose', type: 'number', unit: 'mg/dL', normalRange: '70-100' },
-              { name: 'random_glucose', label: 'Random Glucose', type: 'number', unit: 'mg/dL', normalRange: '<140' },
+              { name: 'fasting_glucose', label: 'Fasting Glucose', type: 'number', unit: 'mg/dL', normalMin: 70, normalMax: 100 },
+              { name: 'random_glucose', label: 'Random Glucose', type: 'number', unit: 'mg/dL', normalMax: 140 },
             ],
           },
         ],
@@ -1202,16 +1202,16 @@ async function main() {
           {
             title: 'Liver Enzymes',
             fields: [
-              { name: 'alt', label: 'ALT (SGPT)', type: 'number', unit: 'U/L', normalRange: '7-56' },
-              { name: 'ast', label: 'AST (SGOT)', type: 'number', unit: 'U/L', normalRange: '10-40' },
-              { name: 'alp', label: 'Alkaline Phosphatase', type: 'number', unit: 'U/L', normalRange: '44-147' },
+              { name: 'alt', label: 'ALT (SGPT)', type: 'number', unit: 'U/L', normalMin: 7, normalMax: 56 },
+              { name: 'ast', label: 'AST (SGOT)', type: 'number', unit: 'U/L', normalMin: 10, normalMax: 40 },
+              { name: 'alp', label: 'Alkaline Phosphatase', type: 'number', unit: 'U/L', normalMin: 44, normalMax: 147 },
             ],
           },
           {
             title: 'Bilirubin',
             fields: [
-              { name: 'total_bilirubin', label: 'Total Bilirubin', type: 'number', unit: 'mg/dL', normalRange: '0.3-1.2' },
-              { name: 'direct_bilirubin', label: 'Direct Bilirubin', type: 'number', unit: 'mg/dL', normalRange: '0.0-0.3' },
+              { name: 'total_bilirubin', label: 'Total Bilirubin', type: 'number', unit: 'mg/dL', normalMin: 0.3, normalMax: 1.2 },
+              { name: 'direct_bilirubin', label: 'Direct Bilirubin', type: 'number', unit: 'mg/dL', normalMin: 0.0, normalMax: 0.3 },
             ],
           },
         ],
@@ -1236,9 +1236,9 @@ async function main() {
           {
             title: 'Kidney Markers',
             fields: [
-              { name: 'creatinine', label: 'Creatinine', type: 'number', unit: 'mg/dL', normalRange: '0.7-1.3' },
-              { name: 'bun', label: 'Blood Urea Nitrogen', type: 'number', unit: 'mg/dL', normalRange: '7-20' },
-              { name: 'uric_acid', label: 'Uric Acid', type: 'number', unit: 'mg/dL', normalRange: '3.5-7.2' },
+              { name: 'creatinine', label: 'Creatinine', type: 'number', unit: 'mg/dL', normalMin: 0.7, normalMax: 1.3 },
+              { name: 'bun', label: 'Blood Urea Nitrogen', type: 'number', unit: 'mg/dL', normalMin: 7, normalMax: 20 },
+              { name: 'uric_acid', label: 'Uric Acid', type: 'number', unit: 'mg/dL', normalMin: 3.5, normalMax: 7.2 },
             ],
           },
         ],
@@ -1263,17 +1263,17 @@ async function main() {
           {
             title: 'Physical Properties',
             fields: [
-              { name: 'color', label: 'Color', type: 'text', normalRange: 'Pale to dark yellow' },
-              { name: 'appearance', label: 'Appearance', type: 'text', normalRange: 'Clear' },
-              { name: 'specific_gravity', label: 'Specific Gravity', type: 'number', normalRange: '1.005-1.030' },
+              { name: 'color', label: 'Color', type: 'text' },
+              { name: 'appearance', label: 'Appearance', type: 'text' },
+              { name: 'specific_gravity', label: 'Specific Gravity', type: 'number', normalMin: 1.005, normalMax: 1.030 },
             ],
           },
           {
             title: 'Chemical Analysis',
             fields: [
-              { name: 'ph', label: 'pH', type: 'number', normalRange: '4.5-8.0' },
-              { name: 'protein', label: 'Protein', type: 'text', normalRange: 'Negative' },
-              { name: 'glucose', label: 'Glucose', type: 'text', normalRange: 'Negative' },
+              { name: 'ph', label: 'pH', type: 'number', normalMin: 4.5, normalMax: 8.0 },
+              { name: 'protein', label: 'Protein', type: 'text' },
+              { name: 'glucose', label: 'Glucose', type: 'text' },
             ],
           },
         ],
@@ -1298,10 +1298,10 @@ async function main() {
           {
             title: 'Thyroid Hormones',
             fields: [
-              { name: 'tsh', label: 'TSH', type: 'number', unit: 'mIU/L', normalRange: '0.4-4.0' },
-              { name: 't3', label: 'T3', type: 'number', unit: 'ng/dL', normalRange: '80-200' },
-              { name: 't4', label: 'T4', type: 'number', unit: 'μg/dL', normalRange: '5.0-12.0' },
-              { name: 'free_t4', label: 'Free T4', type: 'number', unit: 'ng/dL', normalRange: '0.8-1.8' },
+              { name: 'tsh', label: 'TSH', type: 'number', unit: 'mIU/L', normalMin: 0.4, normalMax: 4.0 },
+              { name: 't3', label: 'T3', type: 'number', unit: 'ng/dL', normalMin: 80, normalMax: 200 },
+              { name: 't4', label: 'T4', type: 'number', unit: 'μg/dL', normalMin: 5.0, normalMax: 12.0 },
+              { name: 'free_t4', label: 'Free T4', type: 'number', unit: 'ng/dL', normalMin: 0.8, normalMax: 1.8 },
             ],
           },
         ],
@@ -1326,8 +1326,8 @@ async function main() {
           {
             title: 'Diabetes Control',
             fields: [
-              { name: 'hba1c', label: 'HbA1c', type: 'number', unit: '%', normalRange: '<5.7' },
-              { name: 'average_glucose', label: 'Estimated Average Glucose', type: 'number', unit: 'mg/dL', normalRange: '<117' },
+              { name: 'hba1c', label: 'HbA1c', type: 'number', unit: '%', normalMax: 5.7 },
+              { name: 'average_glucose', label: 'Estimated Average Glucose', type: 'number', unit: 'mg/dL', normalMax: 117 },
             ],
           },
         ],
@@ -1352,10 +1352,10 @@ async function main() {
           {
             title: 'Electrolytes',
             fields: [
-              { name: 'sodium', label: 'Sodium', type: 'number', unit: 'mmol/L', normalRange: '136-145' },
-              { name: 'potassium', label: 'Potassium', type: 'number', unit: 'mmol/L', normalRange: '3.5-5.0' },
-              { name: 'chloride', label: 'Chloride', type: 'number', unit: 'mmol/L', normalRange: '96-106' },
-              { name: 'bicarbonate', label: 'Bicarbonate', type: 'number', unit: 'mmol/L', normalRange: '22-29' },
+              { name: 'sodium', label: 'Sodium', type: 'number', unit: 'mmol/L', normalMin: 136, normalMax: 145 },
+              { name: 'potassium', label: 'Potassium', type: 'number', unit: 'mmol/L', normalMin: 3.5, normalMax: 5.0 },
+              { name: 'chloride', label: 'Chloride', type: 'number', unit: 'mmol/L', normalMin: 96, normalMax: 106 },
+              { name: 'bicarbonate', label: 'Bicarbonate', type: 'number', unit: 'mmol/L', normalMin: 22, normalMax: 29 },
             ],
           },
         ],

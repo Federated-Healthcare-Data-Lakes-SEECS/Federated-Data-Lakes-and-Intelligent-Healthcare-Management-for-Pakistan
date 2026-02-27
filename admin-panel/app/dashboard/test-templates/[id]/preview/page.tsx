@@ -21,7 +21,8 @@ interface TemplateField {
   label: string
   type: 'text' | 'number' | 'select' | 'checkbox' | 'date' | 'textarea'
   unit?: string
-  referenceRange?: string
+  normalMin?: number | null
+  normalMax?: number | null
   options?: string[]
   required?: boolean
 }
@@ -51,8 +52,8 @@ interface OldFormField {
   label: string
   type: 'text' | 'number' | 'select' | 'checkbox' | 'date' | 'textarea'
   unit?: string
-  normalRange?: string
-  referenceRange?: string
+  normalMin?: number | null
+  normalMax?: number | null
   placeholder?: string
   required?: boolean
   options?: string[]
@@ -124,7 +125,15 @@ export default function TemplatePreviewPage() {
     const fieldKey = `field-${index}-${'label' in field ? field.label : ''}`
     const label = field.label
     const unit = field.unit
-    const referenceRange = 'referenceRange' in field ? field.referenceRange : ('normalRange' in field ? field.normalRange : undefined)
+    const normalMin = 'normalMin' in field ? field.normalMin : null
+    const normalMax = 'normalMax' in field ? field.normalMax : null
+    const rangeLabel = normalMin != null && normalMax != null
+      ? `${normalMin} – ${normalMax}`
+      : normalMin != null
+        ? `≥ ${normalMin}`
+        : normalMax != null
+          ? `≤ ${normalMax}`
+          : null
 
     switch (field.type) {
       case 'text':
@@ -135,10 +144,10 @@ export default function TemplatePreviewPage() {
               {field.required && <span className="text-red-500">*</span>}
             </Label>
             <Input placeholder={`Enter ${label.toLowerCase()}`} disabled className="bg-white/50" />
-            {(unit || referenceRange) && (
+            {(unit || rangeLabel) && (
               <div className="flex gap-4 text-xs text-muted-foreground">
                 {unit && <span>Unit: {unit}</span>}
-                {referenceRange && <span>Reference: {referenceRange}</span>}
+                {rangeLabel && <span>Normal Range: {rangeLabel}</span>}
               </div>
             )}
           </div>
@@ -154,7 +163,7 @@ export default function TemplatePreviewPage() {
               <Input type="number" placeholder="0" disabled className="bg-white/50" />
               {unit && <span className="text-sm text-muted-foreground whitespace-nowrap min-w-[60px]">{unit}</span>}
             </div>
-            {referenceRange && <p className="text-xs text-muted-foreground">Reference: {referenceRange}</p>}
+            {rangeLabel && <p className="text-xs text-muted-foreground">Normal Range: {rangeLabel}</p>}
           </div>
         )
       case 'select':
@@ -213,10 +222,10 @@ export default function TemplatePreviewPage() {
               {field.required && <span className="text-red-500">*</span>}
             </Label>
             <Input placeholder={`Enter ${label.toLowerCase()}`} disabled className="bg-white/50" />
-            {(unit || referenceRange) && (
+            {(unit || rangeLabel) && (
               <div className="flex gap-4 text-xs text-muted-foreground">
                 {unit && <span>Unit: {unit}</span>}
-                {referenceRange && <span>Reference: {referenceRange}</span>}
+                {rangeLabel && <span>Normal Range: {rangeLabel}</span>}
               </div>
             )}
           </div>

@@ -69,58 +69,52 @@ import { toast } from "sonner";
 // Normal range evaluation helpers
 // ============================================================================
 
-type RangeStatus = "normal" | "low" | "high" | "abnormal" | "unknown";
+type RangeStatus = "normal" | "low" | "high" | "unknown";
 
 /**
- * Parse a normalRange string and evaluate a given value against it.
- * Supports formats: "4.5-5.5", "<200", ">40", "<=100", ">=10", and text like "Negative".
+ * Evaluate a numeric value against normalMin / normalMax bounds.
+ * Either or both bounds may be null/undefined (open-ended ranges).
  */
-function evaluateRange(value: string, normalRange?: string): { status: RangeStatus; message: string } {
-  if (!normalRange || value === "") return { status: "unknown", message: "" };
+function evaluateRange(
+  value: string,
+  normalMin?: number | null,
+  normalMax?: number | null,
+): { status: RangeStatus; message: string } {
+  if (value === "" || (normalMin == null && normalMax == null))
+    return { status: "unknown", message: "" };
 
   const numVal = parseFloat(value);
+  if (isNaN(numVal)) return { status: "unknown", message: "" };
 
-  // Range: "min-max"  (e.g. "4.5-5.5", "70-100")
-  const rangeMatch = normalRange.match(/^([0-9.]+)\s*[-–]\s*([0-9.]+)$/);
-  if (rangeMatch) {
-    const lo = parseFloat(rangeMatch[1]);
-    const hi = parseFloat(rangeMatch[2]);
-    if (isNaN(numVal)) return { status: "unknown", message: "" };
-    if (numVal < lo) return { status: "low", message: `Below normal (${normalRange})` };
-    if (numVal > hi) return { status: "high", message: `Above normal (${normalRange})` };
-    return { status: "normal", message: `Within normal range` };
+  const rangeLabel = formatRangeLabel(normalMin, normalMax);
+
+  if (normalMin != null && normalMax != null) {
+    if (numVal < normalMin) return { status: "low", message: `Below normal (${rangeLabel})` };
+    if (numVal > normalMax) return { status: "high", message: `Above normal (${rangeLabel})` };
+    return { status: "normal", message: "Within normal range" };
   }
 
-  // Less than: "<200" or "<=200"
-  const ltMatch = normalRange.match(/^<\s*=?\s*([0-9.]+)$/);
-  if (ltMatch) {
-    const threshold = parseFloat(ltMatch[1]);
-    if (isNaN(numVal)) return { status: "unknown", message: "" };
-    const isLte = normalRange.includes("=");
-    if (isLte ? numVal <= threshold : numVal < threshold)
-      return { status: "normal", message: `Within normal range` };
-    return { status: "high", message: `Above normal (${normalRange})` };
+  if (normalMax != null) {
+    // Only upper bound (e.g. < 200)
+    if (numVal > normalMax) return { status: "high", message: `Above normal (${rangeLabel})` };
+    return { status: "normal", message: "Within normal range" };
   }
 
-  // Greater than: ">40" or ">=40"
-  const gtMatch = normalRange.match(/^>\s*=?\s*([0-9.]+)$/);
-  if (gtMatch) {
-    const threshold = parseFloat(gtMatch[1]);
-    if (isNaN(numVal)) return { status: "unknown", message: "" };
-    const isGte = normalRange.includes("=");
-    if (isGte ? numVal >= threshold : numVal > threshold)
-      return { status: "normal", message: `Within normal range` };
-    return { status: "low", message: `Below normal (${normalRange})` };
-  }
-
-  // Text-based comparison (e.g. "Negative", "Clear")
-  if (isNaN(numVal) && typeof value === "string" && value.trim() !== "") {
-    if (value.trim().toLowerCase() === normalRange.trim().toLowerCase())
-      return { status: "normal", message: `Expected: ${normalRange}` };
-    return { status: "abnormal", message: `Expected: ${normalRange}` };
+  if (normalMin != null) {
+    // Only lower bound (e.g. > 40)
+    if (numVal < normalMin) return { status: "low", message: `Below normal (${rangeLabel})` };
+    return { status: "normal", message: "Within normal range" };
   }
 
   return { status: "unknown", message: "" };
+}
+
+/** Build a human-readable label from min/max values. */
+function formatRangeLabel(normalMin?: number | null, normalMax?: number | null): string {
+  if (normalMin != null && normalMax != null) return `${normalMin} – ${normalMax}`;
+  if (normalMax != null) return `≤ ${normalMax}`;
+  if (normalMin != null) return `≥ ${normalMin}`;
+  return "";
 }
 
 function getRangeStatusStyles(status: RangeStatus) {
@@ -151,15 +145,6 @@ function getRangeStatusStyles(status: RangeStatus) {
         icon: <ArrowUp className="h-3.5 w-3.5 text-rose-600" />,
         badgeClass: "bg-rose-100 text-rose-800 border-rose-200",
         badgeLabel: "High",
-      };
-    case "abnormal":
-      return {
-        border: "border-orange-300 focus-within:border-orange-500 focus-within:ring-orange-200",
-        bg: "bg-orange-50/60",
-        text: "text-orange-700",
-        icon: <AlertCircle className="h-3.5 w-3.5 text-orange-600" />,
-        badgeClass: "bg-orange-100 text-orange-800 border-orange-200",
-        badgeLabel: "Abnormal",
       };
     default:
       return {
@@ -590,7 +575,8 @@ export default function AssignedTestsPage() {
                           <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-5 gap-y-4">
                             {section.fields?.map((field: any, fIdx: number) => {
                               const currentValue = results[field.name] || "";
-                              const rangeEval = evaluateRange(currentValue, field.normalRange);
+                              const rangeEval = evaluateRange(currentValue, field.normalMin, field.normalMax);
+                              const rangeLabel = formatRangeLabel(field.normalMin, field.normalMax);
                               const styles = getRangeStatusStyles(rangeEval.status);
                               const showIndicator = rangeEval.status !== "unknown" && currentValue !== "";
 
@@ -689,11 +675,11 @@ export default function AssignedTestsPage() {
                                   )}
 
                                   {/* Normal Range hint */}
-                                  {field.normalRange && (
+                                  {rangeLabel && (
                                     <div className="flex items-center gap-1">
                                       <Info className="h-3 w-3 text-slate-400 shrink-0" />
                                       <p className={`text-xs ${showIndicator ? styles.text : "text-muted-foreground"}`}>
-                                        Normal: {field.normalRange}
+                                        Normal: {rangeLabel}
                                         {field.unit && ` ${field.unit}`}
                                       </p>
                                     </div>
