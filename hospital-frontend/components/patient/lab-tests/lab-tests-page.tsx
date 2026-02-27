@@ -170,13 +170,13 @@ export default function PatientLabTestsPage() {
             </DialogHeader>
             <div className="space-y-4 py-4">
               <Select value={selectedTest} onValueChange={setSelectedTest}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select a lab test" />
+                <SelectTrigger className="w-full border bg-white h-20!">
+                  <SelectValue placeholder="Select a lab test"/>
                 </SelectTrigger>
                 <SelectContent>
                   {availableTests.map((test) => (
                     <SelectItem key={test.id} value={test.id.toString()}>
-                      <div className="flex flex-col">
+                      <div className="flex flex-col p-2 items-start">
                         <span className="font-medium">{test.name}</span>
                         <span className="text-xs text-muted-foreground">
                           {test.departmentName}

@@ -442,22 +442,17 @@ export async function submitCheckup(data: CreateCheckupDto, audioBlob?: Blob | n
   if (data.additionalMedications) formData.append('additionalMedications', data.additionalMedications);
   if (data.additionalTests) formData.append('additionalTests', data.additionalTests);
   
-  // Add medications as JSON string
-  if (data.medications) {
-    formData.append('medications', JSON.stringify(data.medications));
-  }
+  // Add medications as JSON string - ALWAYS append, even if empty
+  const medicationsJson = JSON.stringify(data.medications || []);
+  formData.append('medications', medicationsJson);
   
-  // Add lab test IDs as JSON string
-  if (data.recommendedLabTestIds) {
-    formData.append('recommendedLabTestIds', JSON.stringify(data.recommendedLabTestIds));
-  }
+  // Add lab test IDs as JSON string - ALWAYS append, even if empty
+  const labTestsJson = JSON.stringify(data.recommendedLabTestIds || []);
+  formData.append('recommendedLabTestIds', labTestsJson);
   
   // Add audio file if provided
   if (audioBlob) {
-    console.log(`[API] Adding audio to form: ${(audioBlob.size / 1024).toFixed(2)} KB, type: ${audioBlob.type}`);
     formData.append('audio', audioBlob, 'recording.webm');
-  } else {
-    console.log('[API] No audio blob to attach');
   }
   
   const response = await api.post("/checkups", formData, {
@@ -584,6 +579,66 @@ export async function getLabTestsByDepartment(departmentName: string): Promise<L
  */
 export async function cancelAppointment(appointmentId: number): Promise<void> {
   await api.patch(`/doctors/appointments/${appointmentId}/cancel`);
+}
+
+/**
+ * Reschedule a single appointment to a new slot (within the same schedule)
+ */
+export async function rescheduleAppointment(
+  appointmentId: number,
+  targetSlotId: number,
+): Promise<{ success: boolean; message: string; newSlot: { id: number; startTime: string; endTime: string } }> {
+  const response = await api.patch(`/doctorschedules/appointments/${appointmentId}/reschedule`, {
+    targetSlotId,
+  });
+  return response.data;
+}
+
+/**
+ * Get available slots for a specific schedule
+ */
+export async function getAvailableSlotsForSchedule(
+  scheduleId: number,
+): Promise<{ id: number; scheduleId: number; startTime: string; endTime: string; isBookable: boolean; isBooked: boolean }[]> {
+  const response = await api.get(`/doctorschedules/${scheduleId}/available-slots`);
+  return response.data;
+}
+
+export interface MarkBusyResult {
+  success: boolean;
+  message: string;
+  totalRescheduled: number;
+  totalCancelled: number;
+  totalSlotsBlocked: number;
+  details: Array<{
+    scheduleId: number;
+    rescheduled: Array<{
+      appointmentId: number;
+      patientName: string;
+      fromSlot: { startTime: string; endTime: string };
+      toSlot: { startTime: string; endTime: string };
+    }>;
+    cancelled: Array<{
+      appointmentId: number;
+      patientName: string;
+      slot: { startTime: string; endTime: string };
+    }>;
+    slotsBlocked: number;
+  }>;
+}
+
+/**
+ * Mark doctor as busy for an interval and auto-reschedule/cancel overlapping appointments
+ */
+export async function markBusyAndReschedule(
+  busyFrom: string,
+  busyTo: string,
+): Promise<MarkBusyResult> {
+  const response = await api.post(`/doctorschedules/mark-busy`, {
+    busyFrom,
+    busyTo,
+  });
+  return response.data;
 }
 
 // ============================================================================

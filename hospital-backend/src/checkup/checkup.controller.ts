@@ -77,8 +77,6 @@ export class CheckupController {
     @UploadedFile() audioFile: MulterFile | undefined,
     @GetUser('id') userId: number,
   ) {
-    console.log('[Checkup Controller] Submit checkup request received');
-    console.log('[Checkup Controller] Audio file:', audioFile ? `${(audioFile.size / 1024).toFixed(2)} KB, type: ${audioFile.mimetype}` : 'No audio');
     const audioBuffer = audioFile?.buffer || null;
     const audioMimeType = audioFile?.mimetype || null;
     return this.checkupService.submitCheckup(dto, audioBuffer, audioMimeType, userId);

@@ -14,7 +14,7 @@ import { Roles, UserRole } from '../common/decorators/roles.decorator';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { GetUser } from '../auth/decorators';
 import { DoctorScheduleService } from './doctorschedule.service';
-import { CreateDoctorScheduleDto } from './dto';
+import { CreateDoctorScheduleDto, MarkBusyDto, RescheduleAppointmentDto } from './dto';
 import { ValidationPipe } from '@nestjs/common';
 
 @UseGuards(JwtGuard, RolesGuard)
@@ -56,6 +56,38 @@ export class DoctorScheduleController {
   ) {
     return this.doctorScheduleService.deleteDoctorScheduleById(
       scheduleId,
+      userId,
+    );
+  }
+
+  @Get(':id/available-slots')
+  getAvailableSlotsForSchedule(
+    @Param('id', ParseIntPipe) scheduleId: number,
+    @GetUser('id') userId: number,
+  ) {
+    return this.doctorScheduleService.getAvailableSlotsForSchedule(
+      scheduleId,
+      userId,
+    );
+  }
+
+  @Post('mark-busy')
+  markBusyAndReschedule(
+    @Body(new ValidationPipe({ transform: true })) dto: MarkBusyDto,
+    @GetUser('id') userId: number,
+  ) {
+    return this.doctorScheduleService.markBusyAndReschedule(dto, userId);
+  }
+
+  @Patch('appointments/:id/reschedule')
+  rescheduleAppointment(
+    @Param('id', ParseIntPipe) appointmentId: number,
+    @Body(new ValidationPipe({ transform: true })) dto: RescheduleAppointmentDto,
+    @GetUser('id') userId: number,
+  ) {
+    return this.doctorScheduleService.rescheduleAppointment(
+      appointmentId,
+      dto,
       userId,
     );
   }

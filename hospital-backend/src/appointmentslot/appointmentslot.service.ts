@@ -213,22 +213,21 @@ export class AppointmentSlotService {
     });
   }
 
-  /**
-   * Get doctors with available slots for a specific date
-   * Optimized for patient booking with date filtering and slot limiting
-   */
-  async getDoctorsByDate(dateString: string, maxSlotsPerDoctor: number = 8) {
-    // Parse the date and set time boundaries
-    const selectedDate = new Date(dateString);
-    selectedDate.setHours(0, 0, 0, 0);
+  async getDoctorsByDate(dateString: string, maxSlotsPerDoctor: number = 8, includeStats: boolean = false) {
+    // Parse the date string (YYYY-MM-DD format)
+    // Create date in Pakistan timezone (UTC+5)
+    const [year, month, day] = dateString.split('-').map(Number);
     
-    const nextDay = new Date(selectedDate);
-    nextDay.setDate(selectedDate.getDate() + 1);
-    nextDay.setHours(0, 0, 0, 0);
+    // Create start of day in Pakistan time (00:00:00 PKT = 19:00:00 previous day UTC)
+    const startOfDay = new Date(Date.UTC(year, month - 1, day, 0, 0, 0, 0));
+    startOfDay.setUTCHours(startOfDay.getUTCHours() - 5); // Subtract 5 hours to convert to UTC
+    
+    // Create end of day in Pakistan time (23:59:59 PKT = 18:59:59 same day UTC)
+    const endOfDay = new Date(Date.UTC(year, month - 1, day, 23, 59, 59, 999));
+    endOfDay.setUTCHours(endOfDay.getUTCHours() - 5); // Subtract 5 hours to convert to UTC
 
     const now = new Date();
 
-    // Fetch doctors with schedules that have slots on the selected date
     const doctors = await this.prisma.doctor.findMany({
       include: {
         user: true,
@@ -236,27 +235,24 @@ export class AppointmentSlotService {
         schedules: {
           where: {
             deletedAt: null,
-            to: {
-              gte: now, // Schedule must be active
-            },
-            // Schedule must overlap with selected date
+            to: { gte: now },
             OR: [
               {
                 AND: [
-                  { from: { gte: selectedDate } },
-                  { from: { lt: nextDay } },
+                  { from: { gte: startOfDay } },
+                  { from: { lt: endOfDay } },
                 ],
               },
               {
                 AND: [
-                  { to: { gt: selectedDate } },
-                  { to: { lte: nextDay } },
+                  { to: { gt: startOfDay } },
+                  { to: { lte: endOfDay } },
                 ],
               },
               {
                 AND: [
-                  { from: { lt: selectedDate } },
-                  { to: { gt: nextDay } },
+                  { from: { lt: startOfDay } },
+                  { to: { gt: endOfDay } },
                 ],
               },
             ],
@@ -268,14 +264,12 @@ export class AppointmentSlotService {
                 isBookable: true,
                 isBooked: false,
                 startTime: {
-                  gte: selectedDate,
-                  lt: nextDay,
+                  gte: startOfDay,
+                  lt: endOfDay,
                 },
               },
-              orderBy: {
-                startTime: 'asc',
-              },
-              take: maxSlotsPerDoctor, // Limit slots per doctor
+              orderBy: { startTime: 'asc' },
+              take: maxSlotsPerDoctor,
             },
           },
         },
@@ -286,7 +280,31 @@ export class AppointmentSlotService {
       ],
     });
 
-    // Filter and format doctors that have available slots
+    // --- Stats (only fetched if requested) ---
+    const statsMap: Record<number, {
+      totalAppointments: number;
+      completedCheckups: number;
+      returningPatients: number;
+    }> = {};
+
+    if (includeStats) {
+      const cachedStats = await this.getCachedDoctorStats();
+      cachedStats.forEach((row: any) => {
+        statsMap[row.doctor_id] = {
+          totalAppointments: row.totalAppointments,
+          completedCheckups: row.completedCheckups,
+          returningPatients: row.returningPatients,
+        };
+      });
+    }
+
+    // --- Format ---
+    const defaultStats = {
+      totalAppointments: 0,
+      completedCheckups: 0,
+      returningPatients: 0,
+    };
+
     const doctorsWithSlots = doctors
       .map((doctor) => {
         let allSlots = doctor.schedules.flatMap((schedule) =>
@@ -298,14 +316,11 @@ export class AppointmentSlotService {
           }))
         );
 
-        // Only return doctors with available slots
-        if (allSlots.length === 0) {
-          return null;
-        }
+        if (allSlots.length === 0) return null;
 
         allSlots = allSlots.slice(0, maxSlotsPerDoctor);
 
-        return {
+        const base = {
           id: doctor.id,
           userId: doctor.userId,
           firstName: doctor.user.firstName,
@@ -321,6 +336,14 @@ export class AppointmentSlotService {
           availableSlotsCount: allSlots.length,
           slots: allSlots,
         };
+
+        // Only attach stats if requested — zero impact on existing consumers
+        if (!includeStats) return base;
+
+        return {
+          ...base,
+          stats: statsMap[doctor.id] ?? defaultStats,
+        };
       })
       .filter((doctor) => doctor !== null);
 
@@ -329,6 +352,44 @@ export class AppointmentSlotService {
       totalDoctors: doctorsWithSlots.length,
       doctors: doctorsWithSlots,
     };
+  }
+
+  // --- Cached stats query (5-min TTL) ---
+  private statsCache: { data: any[]; expiresAt: number } | null = null;
+
+  private async getCachedDoctorStats() {
+    const now = Date.now();
+    const FIVE_MINUTES = 5 * 60 * 1000;
+
+    if (this.statsCache && now < this.statsCache.expiresAt) {
+      return this.statsCache.data;
+    }
+
+    const data = await this.prisma.$queryRaw<any[]>`
+      SELECT 
+        ds.doctor_id,
+        COUNT(DISTINCT a.id)::int                                             AS "totalAppointments",
+        COUNT(DISTINCT c.id)::int                                             AS "completedCheckups",
+        COUNT(DISTINCT CASE WHEN pt.visit_count > 1 THEN a.patient_id END)::int AS "returningPatients"
+      FROM doctor_schedules ds
+      JOIN appointment_slots s  ON s.schedule_id = ds.id
+      JOIN appointments a        ON a.slot_id     = s.id
+      LEFT JOIN "Checkup" c      ON c.appointment_id = a.id
+      LEFT JOIN (
+        SELECT patient_id, doctor_id_ref, COUNT(*) AS visit_count
+        FROM (
+          SELECT a2.patient_id, ds2.doctor_id AS doctor_id_ref
+          FROM appointments a2
+          JOIN appointment_slots s2  ON a2.slot_id     = s2.id
+          JOIN doctor_schedules  ds2 ON s2.schedule_id = ds2.id
+        ) sub
+        GROUP BY patient_id, doctor_id_ref
+      ) pt ON pt.patient_id = a.patient_id AND pt.doctor_id_ref = ds.doctor_id
+      GROUP BY ds.doctor_id
+    `;
+
+    this.statsCache = { data, expiresAt: now + FIVE_MINUTES };
+    return data;
   }
 
   /**

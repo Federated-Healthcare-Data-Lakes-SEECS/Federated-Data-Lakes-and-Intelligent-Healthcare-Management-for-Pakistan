@@ -15,7 +15,8 @@ import {
   Briefcase,
   Loader2,
   CalendarPlus,
-  Users
+  Users,
+  Brain
 } from "lucide-react";
 import {
   getDoctorsByDate,
@@ -25,6 +26,7 @@ import {
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { useSemanticSearch } from "@/hooks/use-semantic-search";
 
 interface SelectedSlot {
   slotId: number;
@@ -50,18 +52,27 @@ export default function BookAppointmentPage() {
   // Generate date options (today + next 6 days = 7 total)
   const dateOptions = useMemo(() => {
     const options = [];
+    // Get current date in Pakistan timezone
     const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    const pakOffset = 5 * 60; // Pakistan is UTC+5
+    const pakTime = new Date(today.getTime() + pakOffset * 60 * 1000);
+    
+    const year = pakTime.getUTCFullYear();
+    const month = pakTime.getUTCMonth();
+    const day = pakTime.getUTCDate();
 
     for (let i = 0; i < 7; i++) {
-      const date = new Date(today);
-      date.setDate(today.getDate() + i);
+      // Create date in Pakistan timezone
+      const date = new Date(Date.UTC(year, month, day + i, 0, 0, 0, 0));
       const isToday = i === 0;
 
+      // Format for display in Pakistan timezone
+      const displayDate = new Date(date.getTime() + pakOffset * 60 * 1000);
+
       options.push({
-        value: date.toISOString().split("T")[0],
-        label: isToday ? "Today" : date.toLocaleDateString("en-PK", { weekday: "short" }),
-        fullLabel: date.toLocaleDateString("en-PK", { month: "short", day: "numeric" }),
+        value: `${displayDate.getUTCFullYear()}-${String(displayDate.getUTCMonth() + 1).padStart(2, '0')}-${String(displayDate.getUTCDate()).padStart(2, '0')}`,
+        label: isToday ? "Today" : displayDate.toLocaleDateString("en-PK", { weekday: "short", timeZone: "Asia/Karachi" }),
+        fullLabel: displayDate.toLocaleDateString("en-PK", { month: "short", day: "numeric", timeZone: "Asia/Karachi" }),
         date: date,
         isToday,
       });
@@ -75,7 +86,8 @@ export default function BookAppointmentPage() {
     async function loadDoctorsForDate() {
       try {
         setLoading(true);
-        const data = await getDoctorsByDate(selectedDate, 12); // Max 12 slots per doctor
+        // Pass the date string as-is (YYYY-MM-DD format)
+        const data = await getDoctorsByDate(selectedDate, 12, true); // Max 12 slots per doctor
         setDoctors(data.doctors);
         setSelectedSlot(null); // Reset selected slot when date changes
       } catch (err: any) {
@@ -89,18 +101,8 @@ export default function BookAppointmentPage() {
     loadDoctorsForDate();
   }, [selectedDate]);
 
-  // Filter doctors based on search
-  const filteredDoctors = useMemo(() => {
-    if (!searchQuery.trim()) return doctors;
-
-    const query = searchQuery.toLowerCase();
-    return doctors.filter(
-      (doctor) =>
-        `${doctor.firstName} ${doctor.lastName}`.toLowerCase().includes(query) ||
-        doctor.specialization.toLowerCase().includes(query) ||
-        doctor.departmentName.toLowerCase().includes(query)
-    );
-  }, [searchQuery, doctors]);
+  // Semantic search hook (replaces simple string filter)
+  const { results: filteredDoctors, isModelReady, isSearching } = useSemanticSearch(doctors, searchQuery);
 
   const handleBooking = async () => {
     if (!selectedSlot) return;
@@ -132,22 +134,27 @@ export default function BookAppointmentPage() {
   };
 
   const formatAppointmentDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString("en-PK", {
+    // Parse the ISO datetime string and format for Pakistan timezone
+    const date = new Date(dateString);
+    return date.toLocaleDateString("en-PK", {
       weekday: "long",
       year: "numeric",
       month: "long",
       day: "numeric",
+      timeZone: "Asia/Karachi",
     });
   };
 
   const formatAppointmentTime = (startTime: string, endTime: string) => {
-    const start = new Date(startTime).toLocaleTimeString([], {
+    const start = new Date(startTime).toLocaleTimeString("en-PK", {
       hour: "2-digit",
       minute: "2-digit",
+      timeZone: "Asia/Karachi",
     });
-    const end = new Date(endTime).toLocaleTimeString([], {
+    const end = new Date(endTime).toLocaleTimeString("en-PK", {
       hour: "2-digit",
       minute: "2-digit",
+      timeZone: "Asia/Karachi",
     });
     return `${start} - ${end}`;
   };
@@ -195,7 +202,7 @@ export default function BookAppointmentPage() {
               <div className="p-3 bg-white rounded-lg border border-green-100">
                 <p className="text-xs text-muted-foreground mb-1">Doctor</p>
                 <p className="font-medium text-slate-900">
-                  Dr. {bookedAppointment.doctor.firstName} {bookedAppointment.doctor.lastName}
+                  {bookedAppointment.doctor.firstName} {bookedAppointment.doctor.lastName}
                 </p>
                 <p className="text-sm text-muted-foreground">
                   {bookedAppointment.doctor.specialization} - {bookedAppointment.doctor.departmentName}
@@ -314,8 +321,24 @@ export default function BookAppointmentPage() {
                 placeholder="Search by doctor name, specialization, or department..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10 text-base placeholder:text-base"
+                className="pl-10 pr-32 text-base placeholder:text-base"
               />
+              <div className="absolute right-3 top-1/2 transform -translate-y-1/2 flex items-center gap-1.5">
+                {isSearching && (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin text-emerald-600" />
+                )}
+                {isModelReady ? (
+                  <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-5 gap-1 bg-emerald-50 text-emerald-700 border border-emerald-200">
+                    <Brain className="h-2.5 w-2.5" />
+                    AI Search
+                  </Badge>
+                ) : (
+                  <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-5 gap-1 bg-slate-50 text-slate-500 border border-slate-200">
+                    <Loader2 className="h-2.5 w-2.5 animate-spin" />
+                    Loading AI
+                  </Badge>
+                )}
+              </div>
             </div>
           </CardContent>
         </Card>
@@ -356,7 +379,8 @@ export default function BookAppointmentPage() {
         </Card>
       ) : (
         <div className="grid gap-6">
-          {filteredDoctors.map((doctor) => (
+          {filteredDoctors.map((doctor) => {
+            return (
             <Card key={doctor.id} className="overflow-hidden hover:shadow-lg transition-shadow border bg-white">
               <CardContent className="p-6">
                 {/* Doctor Info */}
@@ -367,7 +391,7 @@ export default function BookAppointmentPage() {
                   </div>
                   <div className="flex-1 min-w-0">
                     <h3 className="text-xl font-bold mb-1">
-                      Dr. {doctor.firstName} {doctor.lastName}
+                      {doctor.firstName} {doctor.lastName}
                     </h3>
                     <p className="text-muted-foreground mb-2">
                       {doctor.specialization}
@@ -423,15 +447,17 @@ export default function BookAppointmentPage() {
                         >
                           <div className="flex items-center justify-center gap-1">
                             <Clock className="h-3 w-3" />
-                            {startTime.toLocaleTimeString([], {
+                            {startTime.toLocaleTimeString("en-PK", {
                               hour: "2-digit",
                               minute: "2-digit",
+                              timeZone: "Asia/Karachi",
                             })}
                           </div>
                           <div className="text-xs opacity-75 mt-1">
-                            {endTime.toLocaleTimeString([], {
+                            {endTime.toLocaleTimeString("en-PK", {
                               hour: "2-digit",
                               minute: "2-digit",
+                              timeZone: "Asia/Karachi",
                             })}
                           </div>
                         </button>
@@ -441,7 +467,8 @@ export default function BookAppointmentPage() {
                 </div>
               </CardContent>
             </Card>
-          ))}
+            );
+          })}
         </div>
       )}
 
@@ -458,14 +485,16 @@ export default function BookAppointmentPage() {
             <div className="text-sm">
               <p className="text-muted-foreground mb-1">Selected Time:</p>
               <p className="font-semibold">
-                {new Date(selectedSlot.startTime).toLocaleTimeString([], {
+                {new Date(selectedSlot.startTime).toLocaleTimeString("en-PK", {
                   hour: "2-digit",
                   minute: "2-digit",
+                  timeZone: "Asia/Karachi",
                 })}{" "}
                 -{" "}
-                {new Date(selectedSlot.endTime).toLocaleTimeString([], {
+                {new Date(selectedSlot.endTime).toLocaleTimeString("en-PK", {
                   hour: "2-digit",
                   minute: "2-digit",
+                  timeZone: "Asia/Karachi",
                 })}
               </p>
             </div>

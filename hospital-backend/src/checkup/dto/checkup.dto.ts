@@ -62,9 +62,28 @@ export class CreateCheckupDto {
 
   // Prescription
   @IsArray()
+  @IsOptional()
   @ValidateNested({ each: true })
   @Type(() => MedicationDto)
-  @Transform(({ value }) => (typeof value === 'string' ? JSON.parse(value) : value))
+  @Transform(({ value }) => {
+    if (!value) return [];
+    if (typeof value === 'string') {
+      try {
+        const parsed = JSON.parse(value);
+        if (!Array.isArray(parsed)) return [];
+        // Manually transform each item to ensure proper typing
+        return parsed.map(item => {
+          const med = new MedicationDto();
+          Object.assign(med, item);
+          return med;
+        });
+      } catch (e) {
+        console.error('[DTO Transform Error] Failed to parse medications:', e);
+        return [];
+      }
+    }
+    return Array.isArray(value) ? value : [];
+  })
   medications: MedicationDto[];
 
   @IsString()
@@ -73,8 +92,10 @@ export class CreateCheckupDto {
 
   // Lab Test Recommendations
   @IsArray()
+  @IsOptional()
   @IsInt({ each: true })
   @Transform(({ value }) => {
+    if (!value) return [];
     if (typeof value === 'string') {
       const parsed = JSON.parse(value);
       return Array.isArray(parsed) ? parsed.map((v: unknown) => typeof v === 'string' ? parseInt(v as string, 10) : v) : parsed;

@@ -35,6 +35,8 @@ export function LoginForm() {
       // Immediately fetch profile to decide where to go
       const me = await api.get("/users/me").then((r) => r.data)
 
+      console.log("User roles:", me.roles)
+
       if (me.roles?.includes("ADMIN")) {
         clearToken()
         toast.error("Invalid credentials", {
@@ -54,6 +56,16 @@ export function LoginForm() {
 
       if (me.roles?.includes("RECEPTIONIST")) {
         router.replace("/receptionist/dashboard")
+        return
+      }
+
+      if(me.roles?.includes("LAB_TECHNICIAN")) {
+        router.replace("/lab-technician/dashboard")
+        return
+      }
+
+      if(me.roles?.includes("PATHOLOGIST")) {
+        router.replace("/pathologist/dashboard")
         return
       }
 

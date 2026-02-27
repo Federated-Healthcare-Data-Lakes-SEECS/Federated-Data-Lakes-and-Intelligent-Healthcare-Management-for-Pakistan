@@ -15,6 +15,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import CheckupForm from "./checkup-form";
+import RescheduleDialog from "./reschedule-dialog";
+import MarkBusyDialog from "./mark-busy-dialog";
 import { CheckupDetailsView } from "../shared/checkup-details";
 import { 
   ArrowLeft, 
@@ -30,7 +32,9 @@ import {
   CalendarX,
   CalendarClock,
   Loader2,
-  Eye
+  Eye,
+  Ban,
+  RefreshCw,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -62,6 +66,9 @@ export default function AppointmentsPageNew() {
   const [appointmentToCancel, setAppointmentToCancel] = useState<number | null>(null);
   const [checkupData, setCheckupData] = useState<CheckupData | null>(null);
   const [loadingCheckup, setLoadingCheckup] = useState(false);
+  const [rescheduleDialogOpen, setRescheduleDialogOpen] = useState(false);
+  const [appointmentToReschedule, setAppointmentToReschedule] = useState<UpcomingAppointment | null>(null);
+  const [markBusyDialogOpen, setMarkBusyDialogOpen] = useState(false);
 
   // Fetch appointments based on filter
   const fetchAppointments = async (filterType: FilterType) => {
@@ -182,6 +189,22 @@ export default function AppointmentsPageNew() {
     }
   };
 
+  const handleRescheduleClick = (apt: UpcomingAppointment) => {
+    setAppointmentToReschedule(apt);
+    setRescheduleDialogOpen(true);
+  };
+
+  const handleRescheduled = async () => {
+    await fetchAppointments(filter);
+    setRescheduleDialogOpen(false);
+    setAppointmentToReschedule(null);
+  };
+
+  const handleMarkBusyComplete = async () => {
+    await fetchAppointments(filter);
+    setMarkBusyDialogOpen(false);
+  };
+
   if (loading) {
     return (
       <div className="p-6 md:p-8 space-y-6">
@@ -295,9 +318,18 @@ export default function AppointmentsPageNew() {
     <div className="p-6 md:p-8 space-y-6 bg-slate-50/50 min-h-screen">
       {/* Header */}
       <div className="flex flex-col gap-2">
-        <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-slate-900">
-          Appointments Management
-        </h1>
+        <div className="flex items-center justify-between">
+          <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-slate-900">
+            Appointments Management
+          </h1>
+          <Button
+            onClick={() => setMarkBusyDialogOpen(true)}
+            variant="outline"
+            className="gap-2 border-orange-300 text-orange-700 hover:bg-orange-50 hover:text-orange-800"
+          >
+            <Ban className="w-4 h-4" /> Mark Busy
+          </Button>
+        </div>
         <p className="text-muted-foreground text-base md:text-lg">
           Manage and track all your patient appointments
         </p>
@@ -375,9 +407,11 @@ export default function AppointmentsPageNew() {
             appointments={categorizedAppointments.upcoming}
             onSelectAppointment={handleSelectAppointment}
             onCancelAppointment={handleCancelClick}
+            onRescheduleAppointment={handleRescheduleClick}
             emptyMessage="No upcoming appointments"
             showCancelButton={true}
             showCheckupButton={true}
+            showRescheduleButton={true}
           />
         </TabsContent>
 
@@ -405,9 +439,11 @@ export default function AppointmentsPageNew() {
           <AppointmentsList
             appointments={categorizedAppointments.noshow}
             onSelectAppointment={handleSelectAppointment}
+            onRescheduleAppointment={handleRescheduleClick}
             emptyMessage="No missed appointments"
             showCancelButton={false}
             showCheckupButton={false}
+            showRescheduleButton={true}
           />
         </TabsContent>
       </Tabs>
@@ -429,6 +465,26 @@ export default function AppointmentsPageNew() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Reschedule Dialog */}
+      {appointmentToReschedule && (
+        <RescheduleDialog
+          open={rescheduleDialogOpen}
+          onOpenChange={(open) => {
+            setRescheduleDialogOpen(open);
+            if (!open) setAppointmentToReschedule(null);
+          }}
+          appointment={appointmentToReschedule}
+          onRescheduled={handleRescheduled}
+        />
+      )}
+
+      {/* Mark Busy Dialog */}
+      <MarkBusyDialog
+        open={markBusyDialogOpen}
+        onOpenChange={setMarkBusyDialogOpen}
+        onComplete={handleMarkBusyComplete}
+      />
     </div>
   );
 }
@@ -464,20 +520,24 @@ interface AppointmentsListProps {
   appointments: UpcomingAppointment[];
   onSelectAppointment?: (apt: UpcomingAppointment) => void;
   onCancelAppointment?: (id: number) => void;
+  onRescheduleAppointment?: (apt: UpcomingAppointment) => void;
   emptyMessage: string;
   showCancelButton: boolean;
   showCheckupButton: boolean;
   showViewCheckupButton?: boolean;
+  showRescheduleButton?: boolean;
 }
 
 function AppointmentsList({
   appointments,
   onSelectAppointment,
   onCancelAppointment,
+  onRescheduleAppointment,
   emptyMessage,
   showCancelButton,
   showCheckupButton,
   showViewCheckupButton = false,
+  showRescheduleButton = false,
 }: AppointmentsListProps) {
   if (appointments.length === 0) {
     return (
@@ -500,9 +560,11 @@ function AppointmentsList({
           appointment={apt}
           onSelectAppointment={onSelectAppointment}
           onCancelAppointment={onCancelAppointment}
+          onRescheduleAppointment={onRescheduleAppointment}
           showCancelButton={showCancelButton}
           showCheckupButton={showCheckupButton}
           showViewCheckupButton={showViewCheckupButton}
+          showRescheduleButton={showRescheduleButton}
         />
       ))}
     </div>
@@ -514,18 +576,22 @@ interface AppointmentCardProps {
   appointment: UpcomingAppointment;
   onSelectAppointment?: (apt: UpcomingAppointment) => void;
   onCancelAppointment?: (id: number) => void;
+  onRescheduleAppointment?: (apt: UpcomingAppointment) => void;
   showCancelButton: boolean;
   showCheckupButton: boolean;
   showViewCheckupButton?: boolean;
+  showRescheduleButton?: boolean;
 }
 
 function AppointmentCard({
   appointment,
   onSelectAppointment,
   onCancelAppointment,
+  onRescheduleAppointment,
   showCancelButton,
   showCheckupButton,
   showViewCheckupButton = false,
+  showRescheduleButton = false,
 }: AppointmentCardProps) {
   const formatDate = (dateStr: string) => new Date(dateStr).toLocaleDateString();
   const formatTimeRange = (startStr: string, endStr: string) => {
@@ -597,7 +663,7 @@ function AppointmentCard({
             </div>
           </div>
 
-          {(showCheckupButton || showCancelButton || showViewCheckupButton) && (
+          {(showCheckupButton || showCancelButton || showViewCheckupButton || showRescheduleButton) && (
             <div className="flex flex-wrap gap-2 justify-end pt-2 border-t">
               {showViewCheckupButton && onSelectAppointment && (
                 <Button
@@ -618,6 +684,16 @@ function AppointmentCard({
                 >
                   <FileText className="w-4 h-4 mr-1" /> 
                   Perform Checkup
+                </Button>
+              )}
+              {showRescheduleButton && onRescheduleAppointment && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => onRescheduleAppointment(appointment)}
+                  className="font-medium border-blue-300 text-blue-700 hover:bg-blue-50"
+                >
+                  <RefreshCw className="w-4 h-4 mr-1" /> Reschedule
                 </Button>
               )}
               {showCancelButton && onCancelAppointment && (

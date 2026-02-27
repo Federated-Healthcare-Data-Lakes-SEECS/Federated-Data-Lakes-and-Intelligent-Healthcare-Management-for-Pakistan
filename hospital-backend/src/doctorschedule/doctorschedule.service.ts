@@ -4,7 +4,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { CreateDoctorScheduleDto } from './dto';
+import { CreateDoctorScheduleDto, MarkBusyDto, RescheduleAppointmentDto } from './dto';
 
 @Injectable()
 export class DoctorScheduleService {
@@ -275,5 +275,368 @@ export class DoctorScheduleService {
     });
 
     return { success: true, message: 'Schedule deleted successfully' };
+  }
+
+  /**
+   * Get available (unbooked, bookable, future) slots for a specific schedule.
+   */
+  async getAvailableSlotsForSchedule(scheduleId: number, userId: number) {
+    const doctor = await this.prisma.doctor.findUnique({ where: { userId } });
+    if (!doctor) {
+      throw new BadRequestException('User is not a doctor or does not exist');
+    }
+
+    const schedule = await this.prisma.doctorSchedule.findUnique({
+      where: { id: scheduleId },
+      include: {
+        appointmentSlots: {
+          where: {
+            deletedAt: null,
+            isBookable: true,
+            isBooked: false,
+          },
+          orderBy: { startTime: 'asc' },
+        },
+      },
+    });
+
+    if (!schedule || schedule.deletedAt) {
+      throw new NotFoundException('Schedule not found');
+    }
+
+    if (schedule.doctorId !== doctor.id) {
+      throw new BadRequestException('You do not have permission to view this schedule');
+    }
+
+    return schedule.appointmentSlots.map((slot) => ({
+      id: slot.id,
+      scheduleId: slot.scheduleId,
+      startTime: slot.startTime,
+      endTime: slot.endTime,
+      isBookable: slot.isBookable,
+      isBooked: slot.isBooked,
+    }));
+  }
+
+  /**
+   * Reschedule a single appointment to a different slot within the same schedule.
+   */
+  async rescheduleAppointment(
+    appointmentId: number,
+    dto: RescheduleAppointmentDto,
+    userId: number,
+  ) {
+    const doctor = await this.prisma.doctor.findUnique({ where: { userId } });
+    if (!doctor) {
+      throw new BadRequestException('User is not a doctor or does not exist');
+    }
+
+    // Get the appointment with slot and schedule info
+    const appointment = await this.prisma.appointment.findUnique({
+      where: { id: appointmentId },
+      include: {
+        slot: {
+          include: { schedule: true },
+        },
+        onlineAppointment: true,
+        walkinAppointment: true,
+      },
+    });
+
+    if (!appointment) {
+      throw new NotFoundException('Appointment not found');
+    }
+
+    if (appointment.slot.schedule.doctorId !== doctor.id) {
+      throw new BadRequestException('You do not have permission to reschedule this appointment');
+    }
+
+    // Check appointment is still active (booked)
+    const isOnline = !!appointment.onlineAppointment;
+    const status = isOnline
+      ? appointment.onlineAppointment?.status
+      : appointment.walkinAppointment?.status;
+
+    if (status !== 'BOOKED') {
+      throw new BadRequestException('Only booked appointments can be rescheduled');
+    }
+
+    // Get the target slot
+    const targetSlot = await this.prisma.appointmentSlot.findUnique({
+      where: { id: dto.targetSlotId },
+      include: { schedule: true },
+    });
+
+    if (!targetSlot || targetSlot.deletedAt) {
+      throw new NotFoundException('Target slot not found');
+    }
+
+    // Ensure target slot is in the same schedule
+    if (targetSlot.scheduleId !== appointment.slot.scheduleId) {
+      throw new BadRequestException('Target slot must be in the same schedule');
+    }
+
+    // Ensure target slot is available
+    if (!targetSlot.isBookable) {
+      throw new BadRequestException('Target slot is not bookable');
+    }
+
+    if (targetSlot.isBooked) {
+      throw new BadRequestException('Target slot is already booked');
+    }
+
+    // Perform the reschedule in a transaction
+    await this.prisma.$transaction(async (prisma) => {
+      // Free up old slot
+      await prisma.appointmentSlot.update({
+        where: { id: appointment.slotId },
+        data: { isBooked: false },
+      });
+
+      // Book new slot
+      await prisma.appointmentSlot.update({
+        where: { id: dto.targetSlotId },
+        data: { isBooked: true },
+      });
+
+      // Move appointment to new slot
+      await prisma.appointment.update({
+        where: { id: appointmentId },
+        data: { slotId: dto.targetSlotId },
+      });
+    });
+
+    return {
+      success: true,
+      message: 'Appointment rescheduled successfully',
+      newSlot: {
+        id: targetSlot.id,
+        startTime: targetSlot.startTime,
+        endTime: targetSlot.endTime,
+      },
+    };
+  }
+
+  /**
+   * Mark a busy interval and auto-reschedule or cancel overlapping appointments.
+   *
+   * Algorithm:
+   * 1. Find all schedules belonging to this doctor that overlap the busy interval.
+   * 2. For each schedule, find slots that overlap the busy interval.
+   * 3. Among those overlapping slots, identify booked ones with active appointments.
+   * 4. Mark all overlapping slots as unbookable.
+   * 5. Find available (unbooked, bookable, non-overlapping) slots in the SAME schedule.
+   * 6. Reschedule as many appointments as possible to available slots.
+   * 7. Cancel any remaining appointments that can't be rescheduled.
+   */
+  async markBusyAndReschedule(dto: MarkBusyDto, userId: number) {
+    const doctor = await this.prisma.doctor.findUnique({ where: { userId } });
+    if (!doctor) {
+      throw new BadRequestException('User is not a doctor or does not exist');
+    }
+
+    if (dto.busyFrom.getTime() >= dto.busyTo.getTime()) {
+      throw new BadRequestException('"busyFrom" must be before "busyTo"');
+    }
+
+    // Find all non-deleted schedules that overlap with the busy interval
+    const schedules = await this.prisma.doctorSchedule.findMany({
+      where: {
+        doctorId: doctor.id,
+        deletedAt: null,
+        from: { lt: dto.busyTo },
+        to: { gt: dto.busyFrom },
+      },
+      include: {
+        appointmentSlots: {
+          where: { deletedAt: null },
+          include: {
+            appointments: {
+              include: {
+                onlineAppointment: true,
+                walkinAppointment: true,
+                patient: {
+                  include: { user: true },
+                },
+              },
+              orderBy: { createdAt: 'desc' },
+              take: 1,
+            },
+          },
+          orderBy: { startTime: 'asc' },
+        },
+      },
+    });
+
+    if (schedules.length === 0) {
+      throw new BadRequestException('No schedules found that overlap with the specified busy interval');
+    }
+
+    const results = {
+      totalRescheduled: 0,
+      totalCancelled: 0,
+      totalSlotsBlocked: 0,
+      details: [] as Array<{
+        scheduleId: number;
+        rescheduled: Array<{
+          appointmentId: number;
+          patientName: string;
+          fromSlot: { startTime: Date; endTime: Date };
+          toSlot: { startTime: Date; endTime: Date };
+        }>;
+        cancelled: Array<{
+          appointmentId: number;
+          patientName: string;
+          slot: { startTime: Date; endTime: Date };
+        }>;
+        slotsBlocked: number;
+      }>,
+    };
+
+    await this.prisma.$transaction(async (prisma) => {
+      for (const schedule of schedules) {
+        const scheduleResult = {
+          scheduleId: schedule.id,
+          rescheduled: [] as typeof results.details[0]['rescheduled'],
+          cancelled: [] as typeof results.details[0]['cancelled'],
+          slotsBlocked: 0,
+        };
+
+        // Separate slots into overlapping and non-overlapping with the busy interval
+        const overlappingSlots = schedule.appointmentSlots.filter(
+          (slot) =>
+            slot.startTime < dto.busyTo && slot.endTime > dto.busyFrom,
+        );
+
+        const nonOverlappingSlots = schedule.appointmentSlots.filter(
+          (slot) =>
+            !(slot.startTime < dto.busyTo && slot.endTime > dto.busyFrom),
+        );
+
+        // Find booked appointments in overlapping slots that need rescheduling
+        const appointmentsToReschedule: Array<{
+          appointmentId: number;
+          oldSlotId: number;
+          patientName: string;
+          isOnline: boolean;
+          onlineAppointmentId?: number;
+          walkinAppointmentId?: number;
+          oldSlot: { startTime: Date; endTime: Date };
+        }> = [];
+
+        for (const slot of overlappingSlots) {
+          if (slot.isBooked && slot.appointments.length > 0) {
+            const apt = slot.appointments[0]; // latest appointment
+            const isOnline = !!apt.onlineAppointment;
+            const status = isOnline
+              ? apt.onlineAppointment?.status
+              : apt.walkinAppointment?.status;
+
+            // Only reschedule active (BOOKED) appointments
+            if (status === 'BOOKED') {
+              appointmentsToReschedule.push({
+                appointmentId: apt.id,
+                oldSlotId: slot.id,
+                patientName: `${apt.patient.user.firstName} ${apt.patient.user.lastName || ''}`.trim(),
+                isOnline,
+                onlineAppointmentId: apt.onlineAppointment?.id,
+                walkinAppointmentId: apt.walkinAppointment?.id,
+                oldSlot: { startTime: slot.startTime, endTime: slot.endTime },
+              });
+            }
+          }
+        }
+
+        // Find available slots in the same schedule (non-overlapping, unbooked, bookable)
+        const availableSlots = nonOverlappingSlots.filter(
+          (slot) => slot.isBookable && !slot.isBooked,
+        );
+
+        // Reschedule appointments to available slots
+        const numToReschedule = Math.min(
+          appointmentsToReschedule.length,
+          availableSlots.length,
+        );
+
+        for (let i = 0; i < numToReschedule; i++) {
+          const aptInfo = appointmentsToReschedule[i];
+          const targetSlot = availableSlots[i];
+
+          // Free old slot
+          await prisma.appointmentSlot.update({
+            where: { id: aptInfo.oldSlotId },
+            data: { isBooked: false },
+          });
+
+          // Book new slot
+          await prisma.appointmentSlot.update({
+            where: { id: targetSlot.id },
+            data: { isBooked: true },
+          });
+
+          // Move appointment
+          await prisma.appointment.update({
+            where: { id: aptInfo.appointmentId },
+            data: { slotId: targetSlot.id },
+          });
+
+          scheduleResult.rescheduled.push({
+            appointmentId: aptInfo.appointmentId,
+            patientName: aptInfo.patientName,
+            fromSlot: aptInfo.oldSlot,
+            toSlot: { startTime: targetSlot.startTime, endTime: targetSlot.endTime },
+          });
+        }
+
+        // Cancel remaining appointments that couldn't be rescheduled
+        for (let i = numToReschedule; i < appointmentsToReschedule.length; i++) {
+          const aptInfo = appointmentsToReschedule[i];
+
+          if (aptInfo.isOnline && aptInfo.onlineAppointmentId) {
+            await prisma.onlineAppointment.update({
+              where: { id: aptInfo.onlineAppointmentId },
+              data: { status: 'CANCELLED' },
+            });
+          } else if (aptInfo.walkinAppointmentId) {
+            await prisma.walkinAppointment.update({
+              where: { id: aptInfo.walkinAppointmentId },
+              data: { status: 'NOT_ATTENDED' },
+            });
+          }
+
+          // Free the old slot
+          await prisma.appointmentSlot.update({
+            where: { id: aptInfo.oldSlotId },
+            data: { isBooked: false },
+          });
+
+          scheduleResult.cancelled.push({
+            appointmentId: aptInfo.appointmentId,
+            patientName: aptInfo.patientName,
+            slot: aptInfo.oldSlot,
+          });
+        }
+
+        // Block all overlapping slots
+        for (const slot of overlappingSlots) {
+          await prisma.appointmentSlot.update({
+            where: { id: slot.id },
+            data: { isBookable: false },
+          });
+          scheduleResult.slotsBlocked++;
+        }
+
+        results.totalRescheduled += scheduleResult.rescheduled.length;
+        results.totalCancelled += scheduleResult.cancelled.length;
+        results.totalSlotsBlocked += scheduleResult.slotsBlocked;
+        results.details.push(scheduleResult);
+      }
+    });
+
+    return {
+      success: true,
+      message: `Processed busy interval: ${results.totalRescheduled} rescheduled, ${results.totalCancelled} cancelled, ${results.totalSlotsBlocked} slots blocked`,
+      ...results,
+    };
   }
 }

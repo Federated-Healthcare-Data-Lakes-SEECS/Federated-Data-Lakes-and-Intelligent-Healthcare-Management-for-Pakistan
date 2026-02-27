@@ -59,6 +59,11 @@ export interface DoctorWithSlots extends DoctorInfo {
 
 export interface DoctorWithSlotsForDate extends Omit<DoctorWithSlots, 'upcomingSlots'> {
   slots: AppointmentSlot[];
+  stats?: {
+    totalAppointments: number;
+    completedCheckups: number;
+    returningPatients: number;
+  };
 }
 
 export interface DoctorsByDateResponse {
@@ -265,11 +270,12 @@ export async function getAllDoctorsWithSlots(): Promise<DoctorWithSlots[]> {
  */
 export async function getDoctorsByDate(
   date: string,
-  limit: number = 8
+  limit: number = 8,
+  includeStats: boolean = false
 ): Promise<DoctorsByDateResponse> {
   try {
     const response = await api.get("/appointment-slots/doctors-by-date", {
-      params: { date, limit },
+      params: { date, limit, includeStats: includeStats.toString() },
     });
     return response.data;
   } catch (error: any) {

@@ -46,9 +46,10 @@ export class AppointmentSlotController {
   getDoctorsByDate(
     @Query('date') date: string,
     @Query('limit') limit?: string,
+    @Query('includeStats') includeStats?: string,
   ) {
     const maxSlots = limit ? parseInt(limit) : 8;
-    return this.appointmentSlotService.getDoctorsByDate(date, maxSlots);
+    return this.appointmentSlotService.getDoctorsByDate(date, maxSlots, includeStats === 'true');
   }
 
   // New endpoint: Get doctors with slots in next 24 hours (for receptionist)

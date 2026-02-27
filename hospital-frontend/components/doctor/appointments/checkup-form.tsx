@@ -354,9 +354,6 @@ export default function CheckupForm({
         recommendedLabTestIds: selectedLabTests.map(({ testId }) => testId),
       };
       
-      // Log for debugging
-      console.log("Submitting checkup with audio:", audioBlob ? `${(audioBlob.size / 1024).toFixed(2)} KB` : "No audio");
-      
       await submitCheckup(checkupData, audioBlob);
       
       toast.success("Checkup submitted successfully!");

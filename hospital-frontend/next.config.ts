@@ -5,6 +5,15 @@ const nextConfig: NextConfig = {
   typescript: {
     ignoreBuildErrors: true,
   },
+  webpack: (config) => {
+    // Required for @xenova/transformers to work in the browser
+    config.resolve.alias = {
+      ...config.resolve.alias,
+      "sharp$": false,
+      "onnxruntime-node$": false,
+    };
+    return config;
+  },
 };
 
 export default nextConfig;

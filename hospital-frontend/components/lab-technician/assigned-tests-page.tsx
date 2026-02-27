@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -19,6 +19,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Separator } from "@/components/ui/separator";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -35,6 +42,13 @@ import {
   Clock,
   FileText,
   AlertCircle,
+  ArrowDown,
+  ArrowUp,
+  Info,
+  Minus,
+  UserCheck,
+  StickyNote,
+  Activity,
 } from "lucide-react";
 import {
   getAssignedLabTests,
@@ -50,6 +64,114 @@ import {
   formatLabTestDate,
 } from "@/lib/api-labtest";
 import { toast } from "sonner";
+
+// ============================================================================
+// Normal range evaluation helpers
+// ============================================================================
+
+type RangeStatus = "normal" | "low" | "high" | "abnormal" | "unknown";
+
+/**
+ * Parse a normalRange string and evaluate a given value against it.
+ * Supports formats: "4.5-5.5", "<200", ">40", "<=100", ">=10", and text like "Negative".
+ */
+function evaluateRange(value: string, normalRange?: string): { status: RangeStatus; message: string } {
+  if (!normalRange || value === "") return { status: "unknown", message: "" };
+
+  const numVal = parseFloat(value);
+
+  // Range: "min-max"  (e.g. "4.5-5.5", "70-100")
+  const rangeMatch = normalRange.match(/^([0-9.]+)\s*[-–]\s*([0-9.]+)$/);
+  if (rangeMatch) {
+    const lo = parseFloat(rangeMatch[1]);
+    const hi = parseFloat(rangeMatch[2]);
+    if (isNaN(numVal)) return { status: "unknown", message: "" };
+    if (numVal < lo) return { status: "low", message: `Below normal (${normalRange})` };
+    if (numVal > hi) return { status: "high", message: `Above normal (${normalRange})` };
+    return { status: "normal", message: `Within normal range` };
+  }
+
+  // Less than: "<200" or "<=200"
+  const ltMatch = normalRange.match(/^<\s*=?\s*([0-9.]+)$/);
+  if (ltMatch) {
+    const threshold = parseFloat(ltMatch[1]);
+    if (isNaN(numVal)) return { status: "unknown", message: "" };
+    const isLte = normalRange.includes("=");
+    if (isLte ? numVal <= threshold : numVal < threshold)
+      return { status: "normal", message: `Within normal range` };
+    return { status: "high", message: `Above normal (${normalRange})` };
+  }
+
+  // Greater than: ">40" or ">=40"
+  const gtMatch = normalRange.match(/^>\s*=?\s*([0-9.]+)$/);
+  if (gtMatch) {
+    const threshold = parseFloat(gtMatch[1]);
+    if (isNaN(numVal)) return { status: "unknown", message: "" };
+    const isGte = normalRange.includes("=");
+    if (isGte ? numVal >= threshold : numVal > threshold)
+      return { status: "normal", message: `Within normal range` };
+    return { status: "low", message: `Below normal (${normalRange})` };
+  }
+
+  // Text-based comparison (e.g. "Negative", "Clear")
+  if (isNaN(numVal) && typeof value === "string" && value.trim() !== "") {
+    if (value.trim().toLowerCase() === normalRange.trim().toLowerCase())
+      return { status: "normal", message: `Expected: ${normalRange}` };
+    return { status: "abnormal", message: `Expected: ${normalRange}` };
+  }
+
+  return { status: "unknown", message: "" };
+}
+
+function getRangeStatusStyles(status: RangeStatus) {
+  switch (status) {
+    case "normal":
+      return {
+        border: "border-emerald-300 focus-within:border-emerald-500 focus-within:ring-emerald-200",
+        bg: "bg-emerald-50/60",
+        text: "text-emerald-700",
+        icon: <CheckCircle className="h-3.5 w-3.5 text-emerald-600" />,
+        badgeClass: "bg-emerald-100 text-emerald-800 border-emerald-200",
+        badgeLabel: "Normal",
+      };
+    case "low":
+      return {
+        border: "border-amber-300 focus-within:border-amber-500 focus-within:ring-amber-200",
+        bg: "bg-amber-50/60",
+        text: "text-amber-700",
+        icon: <ArrowDown className="h-3.5 w-3.5 text-amber-600" />,
+        badgeClass: "bg-amber-100 text-amber-800 border-amber-200",
+        badgeLabel: "Low",
+      };
+    case "high":
+      return {
+        border: "border-rose-300 focus-within:border-rose-500 focus-within:ring-rose-200",
+        bg: "bg-rose-50/60",
+        text: "text-rose-700",
+        icon: <ArrowUp className="h-3.5 w-3.5 text-rose-600" />,
+        badgeClass: "bg-rose-100 text-rose-800 border-rose-200",
+        badgeLabel: "High",
+      };
+    case "abnormal":
+      return {
+        border: "border-orange-300 focus-within:border-orange-500 focus-within:ring-orange-200",
+        bg: "bg-orange-50/60",
+        text: "text-orange-700",
+        icon: <AlertCircle className="h-3.5 w-3.5 text-orange-600" />,
+        badgeClass: "bg-orange-100 text-orange-800 border-orange-200",
+        badgeLabel: "Abnormal",
+      };
+    default:
+      return {
+        border: "",
+        bg: "",
+        text: "text-muted-foreground",
+        icon: null,
+        badgeClass: "",
+        badgeLabel: "",
+      };
+  }
+}
 
 export default function AssignedTestsPage() {
   const [labTests, setLabTests] = useState<PatientLabTest[]>([]);
@@ -418,101 +540,179 @@ export default function AssignedTestsPage() {
 
       {/* Results Submission Dialog */}
       <Dialog open={resultsDialogOpen} onOpenChange={setResultsDialogOpen}>
-        <DialogContent className="sm:max-w-2xl max-h-[80vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Send className="h-5 w-5 text-emerald-600" />
-              Submit Test Results
-            </DialogTitle>
-            <DialogDescription>
-              {selectedTest?.labTest.name} for {selectedTest?.patient.firstName}{" "}
-              {selectedTest?.patient.lastName}
-            </DialogDescription>
-          </DialogHeader>
+        <DialogContent className="sm:max-w-2xl lg:max-w-3xl max-h-[90vh] overflow-hidden flex flex-col p-0">
+          {/* Fixed Header */}
+          <div className="px-6 pt-6 pb-4 border-b bg-linear-to-r from-emerald-50 to-cyan-50">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2.5 text-lg">
+                <div className="w-9 h-9 rounded-lg bg-emerald-600 flex items-center justify-center">
+                  <Send className="h-4.5 w-4.5 text-white" />
+                </div>
+                Submit Test Results
+              </DialogTitle>
+              <DialogDescription className="mt-1.5">
+                <span className="font-medium text-foreground">{selectedTest?.labTest.name}</span>
+                {" "}&mdash;{" "}
+                {selectedTest?.patient.firstName} {selectedTest?.patient.lastName}
+                <span className="mx-1.5">·</span>
+                <span className="text-xs">{selectedTest?.labTest.departmentName}</span>
+              </DialogDescription>
+            </DialogHeader>
+          </div>
+
+          {/* Scrollable Content */}
           {selectedTest && (
-            <div className="space-y-4 py-4">
+            <div className="flex-1 overflow-y-auto px-6 py-5 space-y-6">
               {/* Dynamic Form based on template */}
-              <div className="space-y-4">
-                <h4 className="font-semibold">Test Results</h4>
-                {selectedTest.labTest.formStructure?.sections ? (
-                  selectedTest.labTest.formStructure.sections.map(
+              {selectedTest.labTest.formStructure?.sections ? (
+                <div className="space-y-6">
+                  <div className="flex items-center gap-2">
+                    <Activity className="h-4.5 w-4.5 text-cyan-600" />
+                    <h4 className="font-semibold text-base">Test Results</h4>
+                  </div>
+
+                  {selectedTest.labTest.formStructure.sections.map(
                     (section: any, sIdx: number) => (
-                      <div key={sIdx} className="space-y-3">
-                        <h5 className="font-medium text-sm text-cyan-700 border-b pb-1">
-                          {section.title}
-                        </h5>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                          {section.fields?.map((field: any, fIdx: number) => (
-                            <div key={fIdx} className="space-y-1">
-                              <Label htmlFor={field.name}>
-                                {field.label}
-                                {field.required && (
-                                  <span className="text-red-500 ml-1">*</span>
-                                )}
-                                {field.unit && (
-                                  <span className="text-muted-foreground ml-1">
-                                    ({field.unit})
-                                  </span>
-                                )}
-                              </Label>
-                              {field.type === "select" ? (
-                                <Select
-                                  value={results[field.name] || ""}
-                                  onValueChange={(value) =>
-                                    setResults({ ...results, [field.name]: value })
-                                  }
-                                >
-                                  <SelectTrigger>
-                                    <SelectValue placeholder={`Select ${field.label}`} />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    {field.options?.map((option: string) => (
-                                      <SelectItem key={option} value={option}>
-                                        {option}
-                                      </SelectItem>
-                                    ))}
-                                  </SelectContent>
-                                </Select>
-                              ) : field.type === "textarea" ? (
-                                <Textarea
-                                  id={field.name}
-                                  value={results[field.name] || ""}
-                                  onChange={(e) =>
-                                    setResults({
-                                      ...results,
-                                      [field.name]: e.target.value,
-                                    })
-                                  }
-                                  placeholder={field.placeholder || ""}
-                                />
-                              ) : (
-                                <Input
-                                  id={field.name}
-                                  type={field.type === "number" ? "number" : "text"}
-                                  value={results[field.name] || ""}
-                                  onChange={(e) =>
-                                    setResults({
-                                      ...results,
-                                      [field.name]: e.target.value,
-                                    })
-                                  }
-                                  placeholder={field.placeholder || ""}
-                                  min={field.min}
-                                  max={field.max}
-                                />
-                              )}
-                              {field.normalRange && (
-                                <p className="text-xs text-muted-foreground">
-                                  Normal: {field.normalRange}
-                                </p>
-                              )}
-                            </div>
-                          ))}
+                      <div
+                        key={sIdx}
+                        className="rounded-xl border bg-white shadow-sm overflow-hidden"
+                      >
+                        {/* Section Header */}
+                        <div className="px-4 py-3 bg-slate-50 border-b">
+                          <h5 className="font-semibold text-sm text-slate-700 flex items-center gap-2">
+                            <div className="w-1.5 h-1.5 rounded-full bg-cyan-500" />
+                            {section.title}
+                          </h5>
+                        </div>
+
+                        {/* Section Fields */}
+                        <div className="p-4">
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-5 gap-y-4">
+                            {section.fields?.map((field: any, fIdx: number) => {
+                              const currentValue = results[field.name] || "";
+                              const rangeEval = evaluateRange(currentValue, field.normalRange);
+                              const styles = getRangeStatusStyles(rangeEval.status);
+                              const showIndicator = rangeEval.status !== "unknown" && currentValue !== "";
+
+                              return (
+                                <div key={fIdx} className="space-y-1.5">
+                                  {/* Label Row */}
+                                  <div className="flex items-center justify-between">
+                                    <Label
+                                      htmlFor={field.name}
+                                      className="text-sm font-medium text-slate-700"
+                                    >
+                                      {field.label}
+                                      {field.required && (
+                                        <span className="text-red-500 ml-0.5">*</span>
+                                      )}
+                                    </Label>
+                                    {showIndicator && (
+                                      <TooltipProvider delayDuration={200}>
+                                        <Tooltip>
+                                          <TooltipTrigger asChild>
+                                            <Badge
+                                              variant="outline"
+                                              className={`text-[10px] px-1.5 py-0 h-5 font-medium gap-1 ${styles.badgeClass}`}
+                                            >
+                                              {styles.icon}
+                                              {styles.badgeLabel}
+                                            </Badge>
+                                          </TooltipTrigger>
+                                          <TooltipContent side="top" className="text-xs">
+                                            {rangeEval.message}
+                                          </TooltipContent>
+                                        </Tooltip>
+                                      </TooltipProvider>
+                                    )}
+                                  </div>
+
+                                  {/* Input Field */}
+                                  {field.type === "select" ? (
+                                    <Select
+                                      value={currentValue}
+                                      onValueChange={(value) =>
+                                        setResults({ ...results, [field.name]: value })
+                                      }
+                                    >
+                                      <SelectTrigger
+                                        className={`w-full ${showIndicator ? styles.border + " " + styles.bg : ""}`}
+                                      >
+                                        <SelectValue placeholder={`Select ${field.label}`} />
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        {field.options?.map((option: string) => (
+                                          <SelectItem key={option} value={option}>
+                                            {option}
+                                          </SelectItem>
+                                        ))}
+                                      </SelectContent>
+                                    </Select>
+                                  ) : field.type === "textarea" ? (
+                                    <Textarea
+                                      id={field.name}
+                                      value={currentValue}
+                                      onChange={(e) =>
+                                        setResults({
+                                          ...results,
+                                          [field.name]: e.target.value,
+                                        })
+                                      }
+                                      placeholder={field.placeholder || `Enter ${field.label.toLowerCase()}`}
+                                      className={`resize-none ${showIndicator ? styles.border + " " + styles.bg : ""}`}
+                                      rows={2}
+                                    />
+                                  ) : (
+                                    <div className="relative">
+                                      <Input
+                                        id={field.name}
+                                        type={field.type === "number" ? "number" : "text"}
+                                        value={currentValue}
+                                        onChange={(e) =>
+                                          setResults({
+                                            ...results,
+                                            [field.name]: e.target.value,
+                                          })
+                                        }
+                                        placeholder={field.placeholder || `Enter ${field.label.toLowerCase()}`}
+                                        min={field.min}
+                                        max={field.max}
+                                        step="any"
+                                        className={`${field.unit ? "pr-16" : ""} ${showIndicator ? styles.border + " " + styles.bg : ""}`}
+                                      />
+                                      {field.unit && (
+                                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground font-medium bg-slate-100 px-1.5 py-0.5 rounded">
+                                          {field.unit}
+                                        </span>
+                                      )}
+                                    </div>
+                                  )}
+
+                                  {/* Normal Range hint */}
+                                  {field.normalRange && (
+                                    <div className="flex items-center gap-1">
+                                      <Info className="h-3 w-3 text-slate-400 shrink-0" />
+                                      <p className={`text-xs ${showIndicator ? styles.text : "text-muted-foreground"}`}>
+                                        Normal: {field.normalRange}
+                                        {field.unit && ` ${field.unit}`}
+                                      </p>
+                                    </div>
+                                  )}
+                                </div>
+                              );
+                            })}
+                          </div>
                         </div>
                       </div>
                     )
-                  )
-                ) : (
+                  )}
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <Activity className="h-4.5 w-4.5 text-cyan-600" />
+                    <h4 className="font-semibold text-base">Test Results</h4>
+                  </div>
                   <Textarea
                     placeholder="Enter test results..."
                     value={results.rawResults || ""}
@@ -520,32 +720,48 @@ export default function AssignedTestsPage() {
                       setResults({ ...results, rawResults: e.target.value })
                     }
                     rows={6}
+                    className="resize-none"
                   />
-                )}
-              </div>
+                </div>
+              )}
+
+              <Separator />
 
               {/* Lab Technician Notes */}
-              <div className="space-y-2">
-                <Label htmlFor="technicianNotes">Lab Technician Notes (Optional)</Label>
+              <div className="space-y-2.5">
+                <div className="flex items-center gap-2">
+                  <StickyNote className="h-4 w-4 text-slate-500" />
+                  <Label htmlFor="technicianNotes" className="text-sm font-semibold text-slate-700">
+                    Lab Technician Notes
+                  </Label>
+                  <span className="text-xs text-muted-foreground">(Optional)</span>
+                </div>
                 <Textarea
                   id="technicianNotes"
                   value={labTechnicianNotes}
                   onChange={(e) => setLabTechnicianNotes(e.target.value)}
-                  placeholder="Any additional observations or notes..."
+                  placeholder="Any additional observations, notes, or sample conditions..."
                   rows={3}
+                  className="resize-none"
                 />
               </div>
 
+              <Separator />
+
               {/* Pathologist Selection */}
-              <div className="space-y-2">
-                <Label htmlFor="pathologist">
-                  Assign Pathologist <span className="text-red-500">*</span>
-                </Label>
+              <div className="space-y-2.5">
+                <div className="flex items-center gap-2">
+                  <UserCheck className="h-4 w-4 text-indigo-500" />
+                  <Label htmlFor="pathologist" className="text-sm font-semibold text-slate-700">
+                    Assign Pathologist for Review
+                  </Label>
+                  <span className="text-red-500 text-xs">*</span>
+                </div>
                 <Select
                   value={selectedPathologist}
                   onValueChange={setSelectedPathologist}
                 >
-                  <SelectTrigger>
+                  <SelectTrigger className="w-full h-11">
                     <SelectValue placeholder="Select a pathologist for review" />
                   </SelectTrigger>
                   <SelectContent>
@@ -554,13 +770,18 @@ export default function AssignedTestsPage() {
                         key={pathologist.id}
                         value={pathologist.id.toString()}
                       >
-                        <div className="flex flex-col">
-                          <span className="font-medium">
-                            {pathologist.firstName} {pathologist.lastName}
-                          </span>
-                          <span className="text-xs text-muted-foreground">
-                            {pathologist.specialization}
-                          </span>
+                        <div className="flex items-center gap-2">
+                          <div className="w-6 h-6 rounded-full bg-indigo-100 flex items-center justify-center shrink-0">
+                            <User className="h-3 w-3 text-indigo-600" />
+                          </div>
+                          <div className="flex flex-col">
+                            <span className="font-medium">
+                              {pathologist.firstName} {pathologist.lastName}
+                            </span>
+                            <span className="text-xs text-muted-foreground">
+                              {pathologist.specialization}
+                            </span>
+                          </div>
                         </div>
                       </SelectItem>
                     ))}
@@ -569,19 +790,30 @@ export default function AssignedTestsPage() {
               </div>
             </div>
           )}
-          <DialogFooter>
+
+          {/* Fixed Footer */}
+          <div className="px-6 py-4 border-t bg-slate-50/80 flex items-center justify-end gap-3">
             <Button variant="outline" onClick={() => setResultsDialogOpen(false)}>
               Cancel
             </Button>
             <Button
               onClick={handleSubmitResults}
               disabled={submitting || !selectedPathologist}
-              className="bg-emerald-600 hover:bg-emerald-700"
+              className="bg-emerald-600 hover:bg-emerald-700 min-w-40"
             >
-              {submitting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-              Submit for Review
+              {submitting ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Submitting…
+                </>
+              ) : (
+                <>
+                  <Send className="h-4 w-4 mr-2" />
+                  Submit for Review
+                </>
+              )}
             </Button>
-          </DialogFooter>
+          </div>
         </DialogContent>
       </Dialog>
     </div>
