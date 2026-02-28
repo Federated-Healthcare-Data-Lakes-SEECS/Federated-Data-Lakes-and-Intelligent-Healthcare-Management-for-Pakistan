@@ -4,16 +4,26 @@ import { AppModule } from './app.module';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
+
+  // CORS — use env variable in production, fallback for local dev
+  const corsOrigins = process.env.CORS_ORIGINS
+    ? process.env.CORS_ORIGINS.split(',').map((o) => o.trim())
+    : ['http://localhost:3000', 'http://localhost:3001', 'http://localhost:3002'];
+
   app.enableCors({
-    origin: ['http://localhost:3000', 'http://localhost:3001', 'http://localhost:3002'],
+    origin: corsOrigins,
     credentials: true,
   });
+
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,
       transform: true,
     }),
   );
-  await app.listen(process.env.PORT ?? 3003);
+
+  const port = process.env.PORT ?? 3003;
+  await app.listen(port, '0.0.0.0');
+  console.log(`Checkups Microservice is running on port ${port}`);
 }
 bootstrap();
