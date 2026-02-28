@@ -21,7 +21,7 @@ export class ProxyService {
     const targetUrl = `${targetBaseUrl}${req.originalUrl}`;
     const method = req.method.toLowerCase() as Method;
 
-    this.logger.debug(`Proxying ${method.toUpperCase()} ${req.originalUrl} -> ${targetUrl}`);
+    this.logger.log(`[PROXY] ${method.toUpperCase()} ${req.originalUrl} -> ${targetUrl}`);
 
     const headers: Record<string, string> = {};
 
