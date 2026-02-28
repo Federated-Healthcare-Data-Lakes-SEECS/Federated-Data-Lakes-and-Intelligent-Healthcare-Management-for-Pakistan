@@ -8,14 +8,12 @@
 **/.env.development
 **/.prettierrc
 **/.eslint*
-**/package-lock.json
 **/yarn.lock
 
 # TypeScript build artifacts
 **/*.tsbuildinfo
 
 # Prisma artifacts
-**/prisma/migrations/
 **/prisma/dev.db
 **/prisma/*.sqlite
 
