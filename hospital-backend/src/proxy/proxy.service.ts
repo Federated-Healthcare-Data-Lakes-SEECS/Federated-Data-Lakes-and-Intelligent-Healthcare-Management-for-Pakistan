@@ -3,6 +3,9 @@ import { HttpService } from '@nestjs/axios';
 import { Request, Response } from 'express';
 import { firstValueFrom } from 'rxjs';
 import { AxiosRequestConfig, AxiosError, Method } from 'axios';
+import * as http from 'http';
+import * as https from 'https';
+import { URL } from 'url';
 
 @Injectable()
 export class ProxyService {
@@ -12,6 +15,7 @@ export class ProxyService {
 
   /**
    * Forward a request to a microservice, preserving method, path, query, body, and auth headers.
+   * For multipart/form-data requests, uses the raw body to preserve file boundaries.
    */
   async forward(
     req: Request,
@@ -20,8 +24,15 @@ export class ProxyService {
   ): Promise<void> {
     const targetUrl = `${targetBaseUrl}${req.originalUrl}`;
     const method = req.method.toLowerCase() as Method;
+    const incomingContentType = req.headers['content-type'];
+    const isMultipart = incomingContentType && incomingContentType.includes('multipart/form-data');
 
-    this.logger.log(`[PROXY] ${method.toUpperCase()} ${req.originalUrl} -> ${targetUrl}`);
+    this.logger.log(`[PROXY] ${method.toUpperCase()} ${req.originalUrl} -> ${targetUrl}${isMultipart ? ' (multipart)' : ''}`);
+
+    // For multipart requests, use raw HTTP proxy to preserve the stream/boundaries
+    if (isMultipart && ['post', 'put', 'patch'].includes(method)) {
+      return this.forwardMultipart(req, res, targetUrl);
+    }
 
     const headers: Record<string, string> = {};
 
@@ -31,7 +42,6 @@ export class ProxyService {
     }
 
     // Forward content-type for non-GET requests
-    const incomingContentType = req.headers['content-type'];
     if (incomingContentType) {
       headers['Content-Type'] = incomingContentType;
     }
@@ -46,14 +56,7 @@ export class ProxyService {
 
     // Forward body for non-GET requests
     if (['post', 'put', 'patch', 'delete'].includes(method) && req.body) {
-      // For multipart requests, forward the raw body
-      if (incomingContentType && incomingContentType.includes('multipart/form-data')) {
-        // The raw body won't work with parsed multipart; we need to re-stream
-        // For file uploads, the gateway controller will handle this specially
-        config.data = req.body;
-      } else {
-        config.data = req.body;
-      }
+      config.data = req.body;
     }
 
     try {
@@ -103,5 +106,95 @@ export class ProxyService {
 
       throw new HttpException('Microservice unavailable', 503);
     }
+  }
+
+  /**
+   * Forward multipart/form-data requests by piping the raw request to the microservice.
+   * This preserves the multipart boundaries and file data intact.
+   */
+  private forwardMultipart(
+    req: Request,
+    res: Response,
+    targetUrl: string,
+  ): Promise<void> {
+    return new Promise<void>((resolve, reject) => {
+      const parsed = new URL(targetUrl);
+      const isHttps = parsed.protocol === 'https:';
+      const transport = isHttps ? https : http;
+
+      const headers: Record<string, string> = {};
+
+      // Forward content-type (includes boundary) — this is critical for multipart
+      if (req.headers['content-type']) {
+        headers['content-type'] = req.headers['content-type'];
+      }
+
+      // Forward authorization header
+      if (req.headers.authorization) {
+        headers['authorization'] = req.headers.authorization;
+      }
+
+      // Forward content-length if available
+      if (req.headers['content-length']) {
+        headers['content-length'] = req.headers['content-length'];
+      }
+
+      const proxyReq = transport.request(
+        {
+          hostname: parsed.hostname,
+          port: parsed.port || (isHttps ? 443 : 80),
+          path: parsed.pathname + parsed.search,
+          method: req.method,
+          headers,
+        },
+        (proxyRes) => {
+          res.status(proxyRes.statusCode || 500);
+
+          // Forward response headers
+          if (proxyRes.headers['content-type']) {
+            res.setHeader('Content-Type', String(proxyRes.headers['content-type']));
+          }
+          if (proxyRes.headers['content-disposition']) {
+            res.setHeader('Content-Disposition', String(proxyRes.headers['content-disposition']));
+          }
+
+          const chunks: Buffer[] = [];
+          proxyRes.on('data', (chunk: Buffer) => chunks.push(chunk));
+          proxyRes.on('end', () => {
+            const body = Buffer.concat(chunks);
+            const responseContentType = String(proxyRes.headers['content-type'] || '');
+
+            if (responseContentType.includes('application/json')) {
+              const text = body.toString('utf8');
+              try {
+                res.json(JSON.parse(text));
+              } catch {
+                res.send(text);
+              }
+            } else {
+              res.send(body);
+            }
+            resolve();
+          });
+          proxyRes.on('error', (err) => {
+            this.logger.error(`Proxy multipart response error: ${err.message}`);
+            reject(new HttpException('Microservice error', 502));
+          });
+        },
+      );
+
+      proxyReq.on('error', (err) => {
+        this.logger.error(`Proxy multipart request error: ${err.message}`);
+        reject(new HttpException('Microservice unavailable', 503));
+      });
+
+      // Use rawBody if available (NestJS rawBody option), otherwise pipe the request stream
+      const rawBody = (req as any).rawBody;
+      if (rawBody) {
+        proxyReq.end(rawBody);
+      } else {
+        req.pipe(proxyReq);
+      }
+    });
   }
 }
