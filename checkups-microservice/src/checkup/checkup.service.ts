@@ -531,7 +531,7 @@ export class CheckupService {
     const audioRecord = await this.prisma.checkupAudio.create({
       data: {
         checkupId,
-        audioData: audioBuffer,
+        audioData: new Uint8Array(audioBuffer),
         mimeType,
         fileSize: audioBuffer.length,
         processingStatus: 'PENDING',
