@@ -22,8 +22,8 @@ export default function LoginPage() {
   const { login, isAuthenticated, loading } = useAuth();
   const router = useRouter();
 
-  const [email, setEmail] = useState("admin@hospital.com");
-  const [password, setPassword] = useState("admin123456");
+  const [email, setEmail] = useState(branding.quickLogin.email);
+  const [password, setPassword] = useState(branding.quickLogin.password);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
 
@@ -109,6 +109,34 @@ export default function LoginPage() {
                   "Login"
                 )}
               </Button>
+
+              {branding.quickLogin.email && branding.quickLogin.password && (
+                <>
+                  <div className="relative">
+                    <div className="absolute inset-0 flex items-center">
+                      <span className="w-full border-t border-gray-200" />
+                    </div>
+                    <div className="relative flex justify-center text-xs uppercase">
+                      <span className="bg-white px-2 text-gray-400">
+                        Or quick login as
+                      </span>
+                    </div>
+                  </div>
+
+                  <Button
+                    type="button"
+                    variant="outline"
+                    disabled={submitting}
+                    className="w-full rounded-xl text-sm"
+                    onClick={() => {
+                      setEmail(branding.quickLogin.email);
+                      setPassword(branding.quickLogin.password);
+                    }}
+                  >
+                    Admin
+                  </Button>
+                </>
+              )}
             </form>
           </CardContent>
         </Card>

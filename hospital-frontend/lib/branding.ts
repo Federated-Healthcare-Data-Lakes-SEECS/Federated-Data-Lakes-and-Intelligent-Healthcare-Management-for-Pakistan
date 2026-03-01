@@ -38,6 +38,39 @@ export const branding = {
   copyrightYear:
     process.env.NEXT_PUBLIC_HOSPITAL_COPYRIGHT_YEAR ||
     new Date().getFullYear().toString(),
+
+  /**
+   * Quick-login demo credentials shown on the login page.
+   * Each entry is only included if both email and password env vars are set.
+   * Set any pair to empty strings to omit that button from the UI.
+   */
+  quickLogin: [
+    {
+      label: "Doctor",
+      email: process.env.NEXT_PUBLIC_QUICK_LOGIN_DOCTOR_EMAIL || "",
+      password: process.env.NEXT_PUBLIC_QUICK_LOGIN_DOCTOR_PASSWORD || "",
+    },
+    {
+      label: "Patient",
+      email: process.env.NEXT_PUBLIC_QUICK_LOGIN_PATIENT_EMAIL || "",
+      password: process.env.NEXT_PUBLIC_QUICK_LOGIN_PATIENT_PASSWORD || "",
+    },
+    {
+      label: "Receptionist",
+      email: process.env.NEXT_PUBLIC_QUICK_LOGIN_RECEPTIONIST_EMAIL || "",
+      password: process.env.NEXT_PUBLIC_QUICK_LOGIN_RECEPTIONIST_PASSWORD || "",
+    },
+    {
+      label: "Lab Technician",
+      email: process.env.NEXT_PUBLIC_QUICK_LOGIN_LAB_TECHNICIAN_EMAIL || "",
+      password: process.env.NEXT_PUBLIC_QUICK_LOGIN_LAB_TECHNICIAN_PASSWORD || "",
+    },
+    {
+      label: "Pathologist",
+      email: process.env.NEXT_PUBLIC_QUICK_LOGIN_PATHOLOGIST_EMAIL || "",
+      password: process.env.NEXT_PUBLIC_QUICK_LOGIN_PATHOLOGIST_PASSWORD || "",
+    },
+  ].filter((entry) => entry.email && entry.password),
 } as const
 
 export type Branding = typeof branding

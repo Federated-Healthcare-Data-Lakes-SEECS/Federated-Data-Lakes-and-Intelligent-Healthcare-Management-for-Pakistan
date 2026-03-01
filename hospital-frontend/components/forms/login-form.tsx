@@ -154,45 +154,22 @@ export function LoginForm() {
           </div>
           
           <div className="grid grid-cols-3 gap-2">
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => {
-                setEmail("doctor@hospital.com")
-                setPassword("password123")
-              }}
-              disabled={submitting}
-              className="text-xs"
-            >
-              Doctor
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => {
-                setEmail("patient@hospital.com")
-                setPassword("password123")
-              }}
-              disabled={submitting}
-              className="text-xs"
-            >
-              Patient
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => {
-                setEmail("receptionist@hospital.com")
-                setPassword("password123")
-              }}
-              disabled={submitting}
-              className="text-xs"
-            >
-              Receptionist
-            </Button>
+            {branding.quickLogin.map((entry) => (
+              <Button
+                key={entry.label}
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setEmail(entry.email)
+                  setPassword(entry.password)
+                }}
+                disabled={submitting}
+                className="text-xs"
+              >
+                {entry.label}
+              </Button>
+            ))}
           </div>
         </form>
       </CardContent>

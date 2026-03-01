@@ -38,6 +38,16 @@ export const branding = {
   copyrightYear:
     process.env.NEXT_PUBLIC_HOSPITAL_COPYRIGHT_YEAR ||
     new Date().getFullYear().toString(),
+
+  /**
+   * Quick-login demo credentials pre-filled on the admin login page.
+   * email/password are empty strings when the env vars are not set,
+   * which causes the fields to start blank instead of pre-filled.
+   */
+  quickLogin: {
+    email: process.env.NEXT_PUBLIC_QUICK_LOGIN_ADMIN_EMAIL || "",
+    password: process.env.NEXT_PUBLIC_QUICK_LOGIN_ADMIN_PASSWORD || "",
+  },
 } as const
 
 export type Branding = typeof branding
