@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { clearToken } from "@/lib/auth";
 import { useRouter } from "next/navigation";
+import { branding } from "@/lib/branding";
 
 interface LabTechnicianNavigationProps {
   currentPage: "dashboard" | "assigned" | "completed";
@@ -54,7 +55,7 @@ export default function LabTechnicianNavigation({
         {!isCollapsed ? (
           <div className="space-y-1">
             <h1 className="text-2xl font-bold text-slate-900">
-              Medicare
+              {branding.hospitalName}
             </h1>
             <p className="text-sm text-cyan-600 font-medium">Lab Technician Portal</p>
           </div>

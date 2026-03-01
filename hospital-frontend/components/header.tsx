@@ -6,6 +6,7 @@ import { Activity, LogOut } from "lucide-react"
 import { useAuth } from "@/hooks/use-auth"
 import { useRouter } from "next/navigation"
 import { clearToken } from "@/lib/auth"
+import { branding } from "@/lib/branding"
 
 export function Header() {
   const { isAuthenticated, isPatient, isDoctor, user } = useAuth()
@@ -30,7 +31,7 @@ export function Header() {
           <div className="bg-linear-to-br from-blue-600 to-blue-500 p-2 rounded-xl shadow-lg shadow-blue-500/20 group-hover:shadow-blue-500/40 transition-all">
             <Activity className="h-6 w-6 text-white" />
           </div>
-          <span className="font-black text-xl gradient-text">MediCare</span>
+          <span className="font-black text-xl gradient-text">{branding.hospitalName}</span>
         </Link>
 
         <nav className="flex items-center gap-3">

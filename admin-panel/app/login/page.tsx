@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { useAuth } from "@/contexts/AuthContext";
+import { branding } from "@/lib/branding";
 
 import {
   Card,
@@ -58,7 +59,7 @@ export default function LoginPage() {
         <Card className="backdrop-blur-xl bg-white/90 shadow-2xs rounded-2xl border-0">
           <CardHeader className="space-y-1 text-center">
             <CardTitle className="text-2xl font-bold tracking-tight text-gray-900">
-              Hospital Admin Login
+              {branding.hospitalName} Login
             </CardTitle>
             <CardDescription className="text-gray-500">
               Sign in with your admin credentials

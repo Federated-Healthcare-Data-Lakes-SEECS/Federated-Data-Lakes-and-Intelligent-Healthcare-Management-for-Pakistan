@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { clearToken } from "@/lib/auth";
 import { useRouter } from "next/navigation";
+import { branding } from "@/lib/branding";
 
 interface ReceptionistNavigationProps {
   currentPage: "dashboard" | "register" | "book" | "appointments" | "labtest-lookup";
@@ -64,7 +65,7 @@ export default function ReceptionistNavigation({
         {!isCollapsed ? (
           <div className="space-y-1">
             <h1 className="text-2xl font-bold text-slate-900">
-              Medicare
+              {branding.hospitalName}
             </h1>
             <p className="text-sm text-emerald-600 font-medium">Receptionist Portal</p>
           </div>

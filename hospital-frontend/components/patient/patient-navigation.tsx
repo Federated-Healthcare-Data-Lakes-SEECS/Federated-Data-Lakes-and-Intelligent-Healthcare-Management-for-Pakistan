@@ -4,6 +4,7 @@ import { Calendar, FileText, Home, LogOut, CalendarPlus } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
+import { branding } from "@/lib/branding";
 
 interface PatientNavigationProps {
   currentPage: "dashboard" | "appointments" | "history" | "book";
@@ -41,7 +42,7 @@ export default function PatientNavigation({
     <aside className="w-64 border-r border-border bg-card p-6 flex flex-col">
       <div className="mb-8">
         <div className="space-y-1">
-          <h1 className="text-2xl font-bold text-foreground">Medicare</h1>
+          <h1 className="text-2xl font-bold text-foreground">{branding.hospitalName}</h1>
           <p className="text-base text-muted-foreground">Patient Portal</p>
         </div>
       </div>

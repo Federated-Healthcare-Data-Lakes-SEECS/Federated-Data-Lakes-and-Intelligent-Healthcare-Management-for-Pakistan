@@ -13,6 +13,7 @@ import { setToken, clearToken } from "@/lib/auth"
 import { toast } from "sonner"
 import { mutate } from "swr"
 import { Eye, EyeOff } from "lucide-react"
+import { branding } from "@/lib/branding"
 
 export function LoginForm() {
   const [email, setEmail] = useState("")
@@ -93,7 +94,7 @@ export function LoginForm() {
     <Card className="max-w-md w-full">
       <CardHeader>
         <CardTitle>Welcome back</CardTitle>
-        <CardDescription>Sign in to manage your hospital account</CardDescription>
+        <CardDescription>Sign in to manage your {branding.hospitalName} account</CardDescription>
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className="grid gap-4">

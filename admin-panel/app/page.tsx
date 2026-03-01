@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
+import { branding } from '@/lib/branding';
 
 const features = [
   {
@@ -88,8 +89,8 @@ const Home = () => {
               <Hospital className="h-6 w-6 text-white" />
             </div>
             <div>
-              <h1 className="font-bold text-lg text-foreground">HMS Admin</h1>
-              <p className="text-xs text-muted-foreground">Hospital Management System</p>
+              <h1 className="font-bold text-lg text-foreground">{branding.hospitalName}</h1>
+              <p className="text-xs text-muted-foreground">{branding.tagline}</p>
             </div>
           </div>
           <Button 
@@ -113,14 +114,13 @@ const Home = () => {
 
           {/* Main Heading */}
           <h1 className="text-5xl md:text-6xl font-bold text-foreground mb-6 leading-tight">
-            Hospital Management
+            {branding.hospitalName}
             <span className="block text-primary">Made Simple</span>
           </h1>
 
           {/* Subtitle */}
           <p className="text-xl text-muted-foreground mb-12 max-w-2xl mx-auto leading-relaxed">
-            Streamline your hospital operations with our comprehensive administrative panel. 
-            Manage staff, departments, and medical resources all in one place.
+            {branding.description}
           </p>
 
           {/* CTA Buttons */}
@@ -152,7 +152,7 @@ const Home = () => {
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-16">
             <h2 className="text-3xl font-bold text-foreground mb-4">
-              Complete Hospital Administration
+              Complete Administration
             </h2>
             <p className="text-muted-foreground max-w-2xl mx-auto">
               Everything you need to manage your hospital efficiently, from staff management to lab test templates.
@@ -186,7 +186,7 @@ const Home = () => {
           <div className="flex items-center gap-2">
             <Hospital className="h-5 w-5 text-primary" />
             <span className="text-sm text-muted-foreground">
-              Hospital Management System © {new Date().getFullYear()}
+              {branding.copyrightHolder} © {branding.copyrightYear}
             </span>
           </div>
           <p className="text-sm text-muted-foreground">

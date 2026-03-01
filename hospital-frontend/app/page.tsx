@@ -3,6 +3,7 @@
 import { Header } from "@/components/header"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
+import { branding } from "@/lib/branding"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { useAuth } from "@/hooks/use-auth"
@@ -121,15 +122,15 @@ export default function HomePage() {
             <div className="space-y-8">
               <Badge className="bg-linear-to-r from-blue-600 to-blue-500 text-white border-0 px-4 py-2 shadow-lg shadow-blue-600/30 animate-glow animate-slide-up" style={{ animationFillMode: 'backwards' }}>
                 <Sparkles className="w-4 h-4 mr-2" />
-                Digital Healthcare Platform
+                {branding.tagline}
               </Badge>
               <h1 className="text-5xl md:text-7xl font-bold leading-tight tracking-tight animate-slide-up" style={{ animationDelay: '0.1s', animationFillMode: 'backwards' }}>
-                <span className="gradient-text">Hospital</span> Management
+                <span className="gradient-text">{branding.hospitalName}</span>
                 <br />
-                System
+                Portal
               </h1>
               <p className="text-xl text-muted-foreground max-w-lg leading-relaxed animate-slide-up" style={{ animationDelay: '0.2s', animationFillMode: 'backwards' }}>
-                Streamline hospital operations with online appointment booking, patient records management, and digital checkup system.
+                {branding.description}
               </p>
               <HeroCTAs />
             </div>
@@ -322,10 +323,10 @@ export default function HomePage() {
               <div className="bg-linear-to-br from-blue-600 to-blue-500 p-3 rounded-2xl shadow-lg shadow-blue-500/20 group-hover:scale-110 group-hover:rotate-6 transition-all duration-300">
                 <Activity className="w-7 h-7 text-white" />
               </div>
-              <span className="font-black text-2xl gradient-text">MediCare</span>
+              <span className="font-black text-2xl gradient-text">{branding.hospitalName}</span>
             </div>
             <p className="text-muted-foreground text-center font-medium">
-              © 2025 MediCare. Hospital Management System.
+              © {branding.copyrightYear} {branding.copyrightHolder}. All rights reserved.
             </p>
             <div className="flex gap-8 text-sm font-medium">
               <Link href="#" className="text-muted-foreground hover:text-blue-500 transition-colors hover:scale-110 inline-block">Privacy</Link>

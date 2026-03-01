@@ -4,11 +4,12 @@ import "./globals.css"
 import Providers from "@/components/providers"
 import { Suspense } from "react"
 import { LoadingScreen } from "@/components/loading-screen"
+import { branding } from "@/lib/branding"
 
 export const metadata: Metadata = {
-  title: "HealthCare Hospital",
-  description: "Created with HealthCare Hospital",
-  generator: "HealthCare Hospital",
+  title: branding.hospitalName,
+  description: branding.description,
+  generator: branding.hospitalName,
 }
 
 export default function RootLayout({

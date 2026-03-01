@@ -6,6 +6,7 @@ import { cn } from "@/lib/utils";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { clearToken } from '@/lib/auth';
+import { branding } from "@/lib/branding";
 
 interface EnhancedPatientSidebarProps {
   currentPage: "dashboard" | "appointments" | "history" | "book" | "lab-tests";
@@ -64,7 +65,7 @@ export default function EnhancedPatientSidebar({
         {!isCollapsed ? (
           <div className="space-y-1">
             <h1 className="text-2xl font-bold text-slate-900">
-              Medicare
+              {branding.hospitalName}
             </h1>
             <p className="text-sm text-emerald-600 font-medium">Patient Portal</p>
           </div>

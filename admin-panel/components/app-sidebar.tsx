@@ -3,6 +3,7 @@
 import { Building2, Users, UserCheck, Heart, Pill, FlaskConical, FileText, Activity, LogOut, TestTube, Microscope } from "lucide-react"
 import { usePathname, useRouter } from "next/navigation"
 import { useAuth } from "@/contexts/AuthContext"
+import { branding } from "@/lib/branding"
 
 import {
   Sidebar,
@@ -98,8 +99,8 @@ export function AppSidebar() {
             <Activity className="h-5 w-5" />
           </div>
           <div className="grid flex-1 text-left leading-tight">
-            <span className="truncate font-bold text-base">HMS Admin</span>
-            <span className="truncate text-xs text-muted-foreground">Hospital Management</span>
+            <span className="truncate font-bold text-base">{branding.hospitalName}</span>
+            <span className="truncate text-xs text-muted-foreground">{branding.tagline}</span>
           </div>
         </div>
       </SidebarHeader>

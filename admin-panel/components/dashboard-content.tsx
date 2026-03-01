@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Activity, Users, Heart, Building2, Pill, FlaskConical, UserCheck, TrendingUp } from "lucide-react"
 import api from "@/lib/api"
+import { branding } from "@/lib/branding"
 
 interface DashboardStats {
   doctors: number
@@ -127,8 +128,8 @@ export function DashboardContent() {
             <Activity className="h-6 w-6 text-primary" />
           </div>
           <div>
-            <h2 className="text-xl font-bold text-foreground">Welcome to HMS Admin</h2>
-            <p className="text-muted-foreground">Here's an overview of your hospital management system</p>
+            <h2 className="text-xl font-bold text-foreground">Welcome to {branding.hospitalName}</h2>
+            <p className="text-muted-foreground">Here&apos;s an overview of your hospital management system</p>
           </div>
           <div className="ml-auto hidden md:flex items-center gap-2 text-sm text-muted-foreground">
             <TrendingUp className="h-4 w-4 text-emerald-500" />

@@ -7,6 +7,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { clearToken } from '@/lib/auth';
 import { clear } from 'console';
+import { branding } from "@/lib/branding";
 
 interface EnhancedDoctorSidebarProps {
   currentPage: "dashboard" | "schedules" | "appointments" | "history";
@@ -60,7 +61,7 @@ export default function EnhancedDoctorSidebar({
         {!isCollapsed ? (
           <div className="space-y-1">
             <h1 className="text-2xl font-bold text-slate-900">
-              Medicare
+              {branding.hospitalName}
             </h1>
             <p className="text-sm text-blue-600 font-medium">Doctor Portal</p>
           </div>

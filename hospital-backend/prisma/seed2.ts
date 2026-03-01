@@ -762,12 +762,18 @@ async function main() {
       data: { isBooked: true },
     });
 
+    // Derive realistic timestamps from the slot's date
+    const slotDate = new Date(slot.startTime);
+    const slotDateEnd = new Date(slotDate.getTime() + 30 * 60 * 1000); // +30 min
+
     const isWalkin = i % 3 === 0;
     const appointment = await prisma.appointment.create({
       data: {
         patientId,
         slotId: slot.id,
         reason: row.symptoms.substring(0, 200),
+        createdAt: slotDate,
+        updatedAt: slotDate,
       },
     });
 
@@ -778,6 +784,8 @@ async function main() {
           appointmentId: appointment.id,
           receptionistId: receptionist.id,
           status: 'COMPLETED',
+          createdAt: slotDate,
+          updatedAt: slotDate,
         },
       });
     } else {
@@ -785,6 +793,8 @@ async function main() {
         data: {
           appointmentId: appointment.id,
           status: 'COMPLETED',
+          createdAt: slotDate,
+          updatedAt: slotDate,
         },
       });
     }
@@ -813,6 +823,8 @@ async function main() {
     const prescription = await prisma.prescription.create({
       data: {
         additionalMedications: prescriptionData?.additional_medications || null,
+        createdAt: slotDateEnd,
+        updatedAt: slotDateEnd,
       },
     });
 
@@ -847,6 +859,8 @@ async function main() {
             timesPerDay: med.times_per_day || 1,
             totalDays: med.total_days || 7,
             instructions: med.instructions || null,
+            createdAt: slotDateEnd,
+            updatedAt: slotDateEnd,
           },
         });
       }
@@ -856,6 +870,8 @@ async function main() {
     const testRecommendation = await prisma.checkupTestRecommendation.create({
       data: {
         additionalTests: testRecData?.additional_tests || null,
+        createdAt: slotDateEnd,
+        updatedAt: slotDateEnd,
       },
     });
 
@@ -885,6 +901,8 @@ async function main() {
           data: {
             testRecommendationId: testRecommendation.id,
             labTestId: labTest.id,
+            createdAt: slotDateEnd,
+            updatedAt: slotDateEnd,
           },
         });
       }
@@ -906,6 +924,8 @@ async function main() {
         isDraft: false,
         prescriptionId: prescription.id,
         checkupTestRecommendationId: testRecommendation.id,
+        createdAt: slotDateEnd,
+        updatedAt: slotDateEnd,
       },
     });
 
