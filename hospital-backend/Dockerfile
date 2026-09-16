@@ -1,5 +1,5 @@
 # 1. Use Node.js base image
-FROM node:18-alpine
+FROM node:20-alpine
 
 # Install postgresql-client for pg_isready
 RUN apk add --no-cache postgresql-client
@@ -7,8 +7,10 @@ RUN apk add --no-cache postgresql-client
 # 2. Set working directory
 WORKDIR /usr/src
 
-# 3. Copy package files
+# 3. Copy package files and the Prisma schema (needed by the postinstall
+#    "prisma generate" hook that npm install triggers)
 COPY package*.json ./
+COPY prisma ./prisma
 
 # 4. Install all dependencies (not just prod)
 RUN npm install
@@ -20,4 +22,4 @@ COPY . .
 EXPOSE 3002
 
 # 7. Run the app in dev mode (hot reload)
-CMD ["sh", "-c", "echo 'Generating Prisma client...' && npm run prisma:generate && echo 'Waiting for database...' && until pg_isready -h postgres-db -p 5432 -U postgres; do echo 'Database not ready, waiting...'; sleep 2; done && echo 'Database is ready!' && echo 'Running migrations...' && npx prisma migrate deploy && echo 'Seeding database...' && (npm run seed || echo 'Seeding failed or no seed script') && echo 'Starting application...' && npm run start:dev"]
+CMD ["sh", "-c", "echo 'Generating Prisma client...' && npm run prisma:generate && echo 'Waiting for database...' && until pg_isready -h postgres-db -p 5432 -U postgres; do echo 'Database not ready, waiting...'; sleep 2; done && echo 'Database is ready!' && echo 'Pushing schema...' && npx prisma db push --skip-generate --accept-data-loss && echo 'Seeding database...' && (npm run seed || echo 'Seeding failed or no seed script') && echo 'Starting application...' && npm run start:dev"]

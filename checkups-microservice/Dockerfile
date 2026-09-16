@@ -1,0 +1,25 @@
+# 1. Use Node.js base image
+FROM node:20-alpine
+
+# Install postgresql-client for pg_isready
+RUN apk add --no-cache postgresql-client
+
+# 2. Set working directory
+WORKDIR /usr/src
+
+# 3. Copy package files and the Prisma schema (needed by the postinstall
+#    "prisma generate" hook that npm install triggers)
+COPY package*.json ./
+COPY prisma ./prisma
+
+# 4. Install all dependencies (not just prod)
+RUN npm install
+
+# 5. Copy the rest of the files
+COPY . .
+
+# 6. Expose port
+EXPOSE 3003
+
+# 7. Run the app in dev mode (hot reload)
+CMD ["sh", "-c", "echo 'Generating Prisma client...' && npm run prisma:generate && echo 'Waiting for database...' && until pg_isready -h postgres-db -p 5432 -U postgres; do echo 'Database not ready, waiting...'; sleep 2; done && echo 'Database is ready!' && echo 'Pushing schema...' && npx prisma db push --skip-generate --accept-data-loss && echo 'Starting application...' && npm run start:dev"]

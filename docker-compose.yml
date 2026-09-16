@@ -1,7 +1,8 @@
-version: '3.8'
-
 services:
-  # Single Database Service
+  # Single shared database — hospital-backend, checkups-microservice and
+  # labtests-microservice each carry a full copy of the same Prisma schema
+  # and connect to the same database, mirroring how they're wired in
+  # production (separate services, one relational schema).
   postgres-db:
     image: postgres:15
     container_name: postgres-db
@@ -21,19 +22,25 @@ services:
       timeout: 5s
       retries: 5
 
-  # Backend Services
+  # Hospital Backend — auth, users, departments, doctors, patients, drugs,
+  # and a proxy layer that forwards checkup/lab-test routes to the
+  # microservices below. This is the API hospital-frontend and admin-panel
+  # actually talk to.
   hospital-backend:
     build:
       context: ./hospital-backend
       dockerfile: Dockerfile
     container_name: hospital-backend
     ports:
-      - "3002:3000"
+      - "3002:3002"
     environment:
+      - PORT=3002
       - DATABASE_URL=postgresql://postgres:123@postgres-db:5432/hospital_db
       - JWT_SECRET=your-jwt-secret-here
       - NODE_ENV=development
       - DEFAULT_PASSWORD=12345678
+      - CHECKUP_MICROSERVICE_URL=http://checkups-microservice:3003
+      - LABTEST_MICROSERVICE_URL=http://labtests-microservice:3004
     depends_on:
       postgres-db:
         condition: service_healthy
@@ -44,16 +51,22 @@ services:
       - /usr/src/node_modules
     restart: unless-stopped
 
+  # Checkups Microservice — appointments, doctor schedules, checkups and
+  # audio-based consultation processing. Talks to the audio-mock-server
+  # in place of the real AI transcription service.
   checkups-microservice:
     build:
       context: ./checkups-microservice
       dockerfile: Dockerfile
     container_name: checkups-microservice
     ports:
-      - "3003:3000"
+      - "3003:3003"
     environment:
+      - PORT=3003
       - DATABASE_URL=postgresql://postgres:123@postgres-db:5432/hospital_db
+      - JWT_SECRET=your-jwt-secret-here
       - NODE_ENV=development
+      - AUDIO_ANALYSIS_SERVICE_URL=http://audio-mock-server:3003/api/transcribe
     depends_on:
       postgres-db:
         condition: service_healthy
@@ -64,7 +77,46 @@ services:
       - /usr/src/node_modules
     restart: unless-stopped
 
-  # Frontend Services
+  # Lab Tests Microservice — lab test templates, ordered lab tests and
+  # results.
+  labtests-microservice:
+    build:
+      context: ./labtests-microservice
+      dockerfile: Dockerfile
+    container_name: labtests-microservice
+    ports:
+      - "3004:3004"
+    environment:
+      - PORT=3004
+      - DATABASE_URL=postgresql://postgres:123@postgres-db:5432/hospital_db
+      - JWT_SECRET=your-jwt-secret-here
+      - NODE_ENV=development
+    depends_on:
+      postgres-db:
+        condition: service_healthy
+    networks:
+      - hospital_network
+    volumes:
+      - ./labtests-microservice:/usr/src
+      - /usr/src/node_modules
+    restart: unless-stopped
+
+  # Audio Mock Server — stands in for the real AI transcription/medical
+  # history service (built by the AI team) so the checkup/audio flow can be
+  # developed and tested without depending on that service being available.
+  audio-mock-server:
+    build:
+      context: ./audio-mock-server
+      dockerfile: Dockerfile
+    container_name: audio-mock-server
+    ports:
+      - "3005:3003"
+    networks:
+      - hospital_network
+    restart: unless-stopped
+
+  # Hospital Frontend — patient/doctor/receptionist/lab-technician/
+  # pathologist portal.
   hospital-frontend:
     build:
       context: ./hospital-frontend
@@ -73,7 +125,15 @@ services:
     ports:
       - "3000:3000"
     environment:
-      - NEXT_PUBLIC_API_URL=http://localhost:3002
+      - NEXT_PUBLIC_API_BASE_URL=http://localhost:3002
+      - NEXT_PUBLIC_QUICK_LOGIN_DOCTOR_EMAIL=doctor@hospital.com
+      - NEXT_PUBLIC_QUICK_LOGIN_DOCTOR_PASSWORD=12345678
+      - NEXT_PUBLIC_QUICK_LOGIN_RECEPTIONIST_EMAIL=receptionist@hospital.com
+      - NEXT_PUBLIC_QUICK_LOGIN_RECEPTIONIST_PASSWORD=12345678
+      - NEXT_PUBLIC_QUICK_LOGIN_LAB_TECHNICIAN_EMAIL=labtechnician@hospital.com
+      - NEXT_PUBLIC_QUICK_LOGIN_LAB_TECHNICIAN_PASSWORD=12345678
+      - NEXT_PUBLIC_QUICK_LOGIN_PATHOLOGIST_EMAIL=pathologist@hospital.com
+      - NEXT_PUBLIC_QUICK_LOGIN_PATHOLOGIST_PASSWORD=12345678
     depends_on:
       - hospital-backend
     networks:
@@ -83,15 +143,20 @@ services:
       - /app/node_modules
     restart: unless-stopped
 
+  # Admin Panel — hospital administration (departments, doctors, drugs,
+  # receptionists, lab technicians, pathologists, patients).
   admin-panel:
     build:
       context: ./admin-panel
       dockerfile: Dockerfile
     container_name: admin-panel
     ports:
-      - "3001:3000"
+      - "3001:3001"
     environment:
+      - PORT=3001
       - NEXT_PUBLIC_API_URL=http://localhost:3002
+      - NEXT_PUBLIC_QUICK_LOGIN_ADMIN_EMAIL=admin@hospital.com
+      - NEXT_PUBLIC_QUICK_LOGIN_ADMIN_PASSWORD=admin123456
     depends_on:
       - hospital-backend
     networks:

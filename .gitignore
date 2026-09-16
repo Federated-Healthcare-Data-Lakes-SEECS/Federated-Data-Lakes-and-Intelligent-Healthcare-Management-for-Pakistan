@@ -48,3 +48,6 @@ Thumbs.db
 *.swo
 
 **/tree_printer.py
+
+# Manual API test client (not part of the deployed application)
+hospital-backend-client/
